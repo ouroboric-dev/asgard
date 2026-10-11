@@ -1,8 +1,8 @@
 # Asgard
 
-The company factory by [Ouroboric](https://github.com/ouroboric-dev/ouroboric): it turns an intent
-into a ready-to-build company or product (charter, brand seed, legal basics, roadmap, first design
-doc) and proves readiness with an honest assessment. It runs on the engine of
+Asgard is the company factory by [Ouroboric](https://github.com/ouroboric-dev/ouroboric). It turns an
+intent into a ready-to-build company or product (charter, brand seed, legal basics, roadmap, first
+design doc). It proves readiness with an honest assessment. It runs on the engine of
 [Yggdrasil](https://github.com/ouroboric-dev/yggdrasil), the software factory.
 
 - [Product charter](docs/1-product/charter.md)

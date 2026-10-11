@@ -8,7 +8,7 @@ style: direction
 
 # Asgard product charter
 
-Direction for Asgard, the company factory, within the
+This charter sets direction for Asgard, the company factory, within the
 [Ouroboric charter](https://github.com/ouroboric-dev/ouroboric/blob/main/docs/1-company/charter.md).
 
 ## Vision
@@ -23,7 +23,7 @@ roadmap and first design doc, and prove it is ready with an honest readiness ass
 
 ## Principles
 
-Asgard follows the Ouroboric principles. Product-specific:
+Asgard follows the Ouroboric principles and adds three of its own:
 
 1. **Direction is human.** Asgard drafts and checks; people decide. Charter approval stops for a human
    in every mode by default.
@@ -34,9 +34,9 @@ Asgard follows the Ouroboric principles. Product-specific:
 
 ## Users and problems
 
-Operators starting a company or product (first: Ouroboric itself, then products such as a client
-gallery for photographers). The problem: new ventures start building before direction, legal ground
-and brand are settled, and pay for it later.
+Asgard serves operators starting a company or product: first Ouroboric itself, then products such as
+a client gallery for photographers. It addresses one problem: new ventures start building before they
+settle direction, legal ground and brand, and pay for it later.
 
 ## North-star measures
 

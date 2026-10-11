@@ -7,12 +7,16 @@ style: procedure
 
 # Readiness checklist
 
-Asgard's checklist for companies and products. Copy it into
-`docs/1-company/readiness/YYYY-MM-DD-<level>.md` and fill one row per item. Every item has evidence
-(a link) or is marked missing. Check type **auto** means the docs check can verify it (the artifact
-exists and has the right status); **human** means a person must judge it.
+This is the Asgard checklist for companies and products.
 
-Status values: `met`, `partial`, `missing`, `n/a` (with a reason).
+1. Copy this checklist into `docs/1-company/readiness/YYYY-MM-DD-<level>.md`.
+2. Fill one row for each item.
+3. Give evidence (a link) for each item, or mark the item missing.
+
+Check type **auto** means that the docs check can verify the item. The check verifies that the
+artifact exists and has the correct status. Check type **human** means that a person must judge the item.
+
+Use these status values: `met`, `partial`, `missing`, `n/a` (give a reason).
 
 ## Level 1: ready to build (before the first spec)
 
