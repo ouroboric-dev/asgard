@@ -42,6 +42,7 @@ Use these status values: `met`, `partial`, `missing`, `n/a` (give a reason).
 | RB-18 | build | Is the implementation plan written and accepted? | auto |
 | RB-19 | build | Are the open technical risks identified, with a plan to test them first? | human |
 | RB-20 | build | Is the measure of success fixed in advance (benchmark brief and hidden tests, if any)? | auto + human |
+| RB-21 | brand | Is a minimal visual identity defined: logo, colour palette with accessible contrast, typography with licensed fonts, and basic design rules? | auto + human |
 
 ## Level 2: ready to launch (before `deploy-prod`)
 
@@ -52,7 +53,7 @@ Use these status values: `met`, `partial`, `missing`, `n/a` (give a reason).
 | RL-03 | operations | Has a backup been restored at least once? | human |
 | RL-04 | money | Are cost alerts and caps set with the hosting providers? | human |
 | RL-05 | support | Is there a support channel and an incident process? | human |
-| RL-06 | brand | Is the visual identity done (logo, palette, typography)? | auto |
+| RL-06 | brand | Is the complete visual identity done: logo system and usage rules, palette and typography as design tokens, and source assets? | auto + human |
 | RL-07 | security | Is production separated from previews (secrets, databases, storage)? | human |
 
 ## Level 3: ready to promote
