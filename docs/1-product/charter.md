@@ -1,7 +1,7 @@
 ---
 title: Asgard product charter
-status: draft
-date: 2026-10-11
+status: accepted
+date: 2026-10-12
 related: ["https://github.com/ouroboric-dev/ouroboric/blob/main/docs/1-company/charter.md"]
 style: direction
 ---
@@ -19,7 +19,8 @@ written down, agreed and tested before anything is built.
 ## Mission
 
 Turn an intent into a ready-to-build company or product, with a charter, brand seed, legal basics,
-roadmap and first design doc, and prove it is ready with an honest readiness assessment.
+roadmap and first design doc; prove it is ready with an honest readiness assessment; and learn from
+every kickstart to make the next one better.
 
 ## Principles
 
@@ -42,9 +43,13 @@ settle direction, legal ground and brand, and pay for it later.
 
 - Readiness gaps found before building rather than after.
 - Time from intent to an accepted charter and first design doc.
+- Fewer readiness gaps found after building, kickstart over kickstart: every late gap becomes a
+  checklist item for the next venture.
 
 ## Boundaries
 
 - Runs on Yggdrasil's engine (Odin); no engine of its own.
+- Open source: AGPL-3.0 for Asgard's code, MIT for templates copied into the companies and products
+  it kickstarts, CC BY 4.0 for docs. What it produces belongs to the operator.
 - v0 is templates, the readiness checklist and the documented manual kickstart; automation (skills,
   scripts, the Ginnungagap graph) comes after Yggdrasil v0.
