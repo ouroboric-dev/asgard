@@ -55,6 +55,7 @@ Use these status values: `met`, `partial`, `missing`, `n/a` (give a reason).
 | RL-05 | support | Is there a support channel and an incident process? | human |
 | RL-06 | brand | Is the complete visual identity done: logo system and usage rules, palette and typography as design tokens, and source assets? | auto + human |
 | RL-07 | security | Is production separated from previews (secrets, databases, storage)? | human |
+| RL-08 | legal | Has a formal trademark search for the company and product names been run in the official registers of the target markets (for example USPTO, and EUIPO through TMview), with any conflicts resolved? | human |
 
 ## Level 3: ready to promote
 
