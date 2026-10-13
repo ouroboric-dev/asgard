@@ -12,6 +12,10 @@ design doc). It proves readiness with an honest assessment. It runs on the engin
 v0 (after Yggdrasil v0): templates, the readiness checklist and the documented manual kickstart.
 Later: kickstart skills (in Havamal), scripts, and the Ginnungagap graph on Odin.
 
+## Contributing
+
+Run `uvx pre-commit install` once after cloning, so `gitleaks` checks each commit for secrets.
+
 ## Licence
 
 - **Code:** [AGPL-3.0](LICENSE). Anyone may use, change and share it. Anyone who distributes a
