@@ -1,0 +1,30 @@
+# Issue form: an improvement to the asgard factory. Nothing acts on issues automatically.
+name: Improvement
+description: An idea to make the asgard factory better.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not paste a private project's code, data or secrets here.** This repository is public.
+        Describe the idea in your own words, and leave out anything you would not publish.
+  - type: input
+    id: factory-version
+    attributes:
+      label: Factory version
+      description: The asgard version or commit you ran.
+    validations:
+      required: true
+  - type: input
+    id: config-hash
+    attributes:
+      label: Config hash
+      description: The config hash of the run.
+    validations:
+      required: true
+  - type: textarea
+    id: improvement
+    attributes:
+      label: What should be better
+      description: The problem you hit, and the change you would like.
+    validations:
+      required: true
