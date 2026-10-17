@@ -1,9 +1,9 @@
 # Asgard
 
-Asgard is the company factory by [Ouroboric](https://github.com/ouroboric-dev/ouroboric). It turns an
-intent into a ready-to-build company or product (charter, brand seed, legal basics, roadmap, first
-design doc). It proves readiness with an honest assessment. It runs on the engine of
-[Yggdrasil](https://github.com/ouroboric-dev/yggdrasil), the software factory.
+Asgard is the kickstart realm of [Yggdrasil](https://github.com/ouroboric-dev/yggdrasil), the agentic
+factory by [Ouroboric](https://github.com/ouroboric-dev/ouroboric). It turns an intent into a
+ready-to-build company or product (charter, brand seed, legal basics, roadmap, first design doc). It
+proves readiness with an honest assessment.
 
 - [Product charter](docs/1-product/charter.md)
 - [Readiness checklist](templates/readiness/checklist.md)
