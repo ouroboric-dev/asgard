@@ -1,12 +1,19 @@
 ---
 title: Asgard product charter
-status: accepted
+status: superseded
 date: 2026-10-12
-related: ["https://github.com/ouroboric-dev/ouroboric/blob/main/docs/1-company/charter.md"]
+related: ["https://github.com/ouroboric-dev/ouroboric/blob/main/docs/1-company/charter.md", "https://github.com/ouroboric-dev/yggdrasil/blob/main/docs/1-product/charter.md"]
 style: direction
 ---
 
 # Asgard product charter
+
+> **Superseded on 2026-10-17.** Asgard is no longer a separate factory: it is Yggdrasil's kickstart
+> realm. Its direction now lives in the
+> [Yggdrasil charter](https://github.com/ouroboric-dev/yggdrasil/blob/main/docs/1-product/charter.md)
+> and the Asgard v0 design doc in Yggdrasil's `docs/1-product/design/`. This repository becomes a
+> leaf of `yggdrasil` after Yggdrasil v0. The text below is kept as the record of the original
+> direction.
 
 This charter sets direction for Asgard, the company factory, within the
 [Ouroboric charter](https://github.com/ouroboric-dev/ouroboric/blob/main/docs/1-company/charter.md).
