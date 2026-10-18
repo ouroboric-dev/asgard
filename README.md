@@ -10,7 +10,7 @@ proves readiness with an honest assessment.
 - Kickstart process: [spec-driven development, tier 0](https://github.com/ouroboric-dev/ouroboric/blob/main/docs/4-ways-of-working/spec-driven-development.md#31-tier-0-kickstarting-a-company-or-a-product)
 
 v0 (after Yggdrasil v0): templates, the readiness checklist and the documented manual kickstart.
-Later: kickstart skills (in Havamal), scripts, and the Ginnungagap graph on Odin.
+Later: kickstart skills (in Havamal), scripts, and the `kickstart` graph on Odin.
 
 ## Contributing
 
