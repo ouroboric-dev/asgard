@@ -7,7 +7,7 @@ build. This umbrella holds docs and the templates Asgard copies into new compani
 ## Invariants
 
 These rules apply to every repo in this tree. They include the company invariants:
-https://github.com/ouroboric-dev/ouroboric/blob/main/AGENTS.md#invariants
+<https://github.com/ouroboric-dev/ouroboric/blob/main/AGENTS.md#invariants>
 A child `AGENTS.md` may add rules; it must not loosen these.
 
 1. Humans steer. Stop and ask when work would leave an approved charter, spec or plan.
@@ -24,4 +24,4 @@ A child `AGENTS.md` may add rules; it must not loosen these.
 
 - Direction: `docs/1-product/charter.md`.
 - Templates copied into new companies: `templates/` (MIT).
-- Standards: https://github.com/ouroboric-dev/ouroboric/tree/main/docs/4-ways-of-working
+- Standards: <https://github.com/ouroboric-dev/ouroboric/tree/main/docs/4-ways-of-working>

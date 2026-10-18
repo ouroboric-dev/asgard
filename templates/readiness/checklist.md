@@ -21,7 +21,7 @@ Use these status values: `met`, `partial`, `missing`, `n/a` (give a reason).
 ## Level 1: ready to build (before the first spec)
 
 | ID | Area | Question | Check |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | RB-01 | direction | Is the company charter accepted? | auto |
 | RB-02 | direction | Is the product charter accepted, and does it conform to the company charter? | auto + human |
 | RB-03 | direction | Is milestone 1's design doc accepted? | auto |
@@ -47,7 +47,7 @@ Use these status values: `met`, `partial`, `missing`, `n/a` (give a reason).
 ## Level 2: ready to launch (before `deploy-prod`)
 
 | ID | Area | Question | Check |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | RL-01 | legal | Are the privacy policy, terms, data map and deletion process written and reviewed by a qualified person? | auto + human |
 | RL-02 | operations | Are runbooks written (deploy, restore, rotate keys, incidents)? | auto |
 | RL-03 | operations | Has a backup been restored at least once? | human |
@@ -60,7 +60,7 @@ Use these status values: `met`, `partial`, `missing`, `n/a` (give a reason).
 ## Level 3: ready to promote
 
 | ID | Area | Question | Check |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | RP-01 | brand | Is the voice guide written? | auto |
 | RP-02 | record | Do journal entries carry measured results to quote? | auto |
 | RP-03 | content | Is the launch copy written and humanized? | human |
