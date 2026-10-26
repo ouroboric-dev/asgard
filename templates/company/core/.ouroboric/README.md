@@ -5,3 +5,5 @@ kept here, and only here, so that no tool's name or setting appears in the compa
 
 - `company.yaml`: where this umbrella came from: the template version, the date, the add-ons, the founders.
 - `standards.yaml` (with the yggdrasil add-on): the standards the company follows, at a pinned version.
+- `mkdocs.yml`: the company's docs as pages, to review on this machine only: Asgard's `company-site.sh serve`
+  shows them at <http://127.0.0.1:8000>. The built pages go to `site/`, which git ignores.
