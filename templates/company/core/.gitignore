@@ -1,0 +1,4 @@
+# Raw sources that shouldn't be committed: generated rasters, exports in progress, local notes.
+*.raw.png
+.DS_Store
+.local/

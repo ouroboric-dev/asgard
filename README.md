@@ -7,6 +7,8 @@ proves readiness with an honest assessment.
 
 - [Product charter](docs/1-product/charter.md)
 - [Readiness checklist](templates/readiness/checklist.md)
+- [Company template](templates/company/): the umbrella every new company starts from, with a core and add-ons
+  (Yggdrasil, open source, two or more founders). `scripts/new-company.sh` scaffolds it (step 1 of the kickstart).
 - Kickstart process: [spec-driven development, tier 0](https://github.com/ouroboric-dev/ouroboric/blob/main/docs/4-ways-of-working/spec-driven-development.md#31-tier-0-kickstarting-a-company-or-a-product)
 
 v0 (after Yggdrasil v0): templates, the readiness checklist and the documented manual kickstart.
