@@ -33,6 +33,14 @@ check "no configuration file at the root" [ ! -e "$T/a/asgard.yaml" ]
 # The founder's files never name the factory or its parts; what the factory needs stays in .ouroboric/.
 leaks() { grep -rIliE --exclude-dir=.ouroboric "(^|[^.])\b(asgard|yggdrasil|ouroboric|ygg|odin|gungnir|gleipnir|jormungandr|havamal|voluspa|niflheim|helheim|midgard|realm)\b" "$1"; }
 check "no file outside .ouroboric/ names the factory (default)" [ -z "$(leaks "$T/a")" ]
+# Inside .ouroboric/ the wording is generic: a part of the factory is named only in a setting for that part (the
+# add-ons a company has, the names the names check looks for).
+internal='(^|[^.])\b(asgard|yggdrasil|ygg|odin|gungnir|gleipnir|jormungandr|havamal|voluspa|niflheim|helheim|midgard|realm|ginnungagap)\b|scripts/'
+# shellcheck disable=SC2329 # inner runs through check
+inner() { local f; while IFS= read -r -d '' f; do
+  case "$f" in */names-check.sh) continue ;; esac
+  grep -vE '^addons: ' "$f" | grep -qiE "$internal" && echo "$f"; done < <(find "$1/.ouroboric" -type f -print0); }
+check "inside .ouroboric/, no file names a part of the factory outside its settings" [ -z "$(inner "$T/a")" ]
 check "the tokens are valid JSON" python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$T/a/docs/7-branding/identity/tokens.json"
 
 # Add-ons on and off.
