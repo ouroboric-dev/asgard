@@ -21,7 +21,7 @@ check "it writes the core: accounts inventory" has "$T/a" docs/1-company/account
 check "it writes the core: voice guide" has "$T/a" docs/7-branding/voice/README.md
 check "it writes the core: design tokens" has "$T/a" docs/7-branding/identity/tokens.json
 check "it writes the core: AGENTS.md" has "$T/a" AGENTS.md
-check "the Yggdrasil add-on is on by default" has "$T/a" docs/4-ways-of-working/README.md
+check "the Yggdrasil add-on is on by default" has "$T/a" .ouroboric/standards.yaml
 check "the open-source add-on is off by default" [ ! -e "$T/a/docs/1-company/legal/licences.md" ]
 check "one founder gets no founders' agreement" [ ! -e "$T/a/docs/1-company/founders-agreement.md" ]
 check "every placeholder is filled" none "$T/a" "{{"
@@ -37,7 +37,8 @@ check "the tokens are valid JSON" python3 -c "import json,sys; json.load(open(sy
 
 # Add-ons on and off.
 "$NEW" --name "Two Hands" --date 2026-10-26 --no-yggdrasil --open-source --founders 2 "$T/b" >/dev/null 2>&1
-check "no Yggdrasil add-on when turned off" [ ! -e "$T/b/docs/4-ways-of-working/README.md" ]
+check "no Yggdrasil add-on when turned off" [ ! -e "$T/b/.ouroboric/standards.yaml" ]
+check "core keeps a ways-of-working page without it" has "$T/b" docs/4-ways-of-working/README.md
 check "the open-source add-on when turned on" has "$T/b" docs/1-company/legal/licences.md
 check "two founders get a founders' agreement" has "$T/b" docs/1-company/founders-agreement.md
 check "the add-ons are recorded in order" grep -q "^addons: \[open-source, founders\]$" "$T/b/.ouroboric/company.yaml"

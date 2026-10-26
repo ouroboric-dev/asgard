@@ -1,0 +1,31 @@
+# The company's docs as pages, for review on this machine only: Asgard's company-site.sh builds and serves them.
+site_name: "{{COMPANY}}"
+docs_dir: ../docs
+site_dir: site
+strict: true
+# A link the pages can't follow is a warning, and strict turns every warning into a failure.
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+use_directory_urls: true
+theme:
+  name: material
+  features:
+    - navigation.indexes
+    - navigation.sections
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle: {icon: material/brightness-7, name: Dark}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle: {icon: material/brightness-4, name: Light}
+markdown_extensions:
+  - tables
+  - toc:
+      permalink: true
+  - admonition
+  - attr_list
+  - md_in_html
