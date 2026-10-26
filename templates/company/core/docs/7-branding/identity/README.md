@@ -13,7 +13,7 @@ The design language of {{COMPANY}}: every product's design is built from it, so 
 one look and feel. [tokens.json](tokens.json) is the source the products read; [tokens.css](tokens.css) is its CSS
 form.
 
-<!-- Asgard: filled at step 6 (Brand: look). Answers readiness RB-21. The founder approves it at the brand stop, from the brand board. Delete this comment when the section is written. -->
+<!-- To write at step 6 (Brand: look). Answers readiness RB-21. The founder approves it at the brand stop, from the brand board. Delete this comment when the section is written. -->
 
 ## Palette
 

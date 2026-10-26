@@ -9,7 +9,7 @@ style: direction
 
 # Budget
 
-<!-- Asgard: filled at step 7 (Business basics). Answers readiness RB-13. Delete this comment when the section is written. -->
+<!-- To write at step 7 (Business basics). Answers readiness RB-13. Delete this comment when the section is written. -->
 
 ## Scope
 

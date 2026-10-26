@@ -9,7 +9,7 @@ style: direction
 
 # Customers and offer
 
-<!-- Asgard: filled at step 2 (Customers and offer). The competitor brief goes in 5-research/. Delete this comment when the section is written. -->
+<!-- To write at step 2 (Customers and offer). The competitor brief goes in 5-research/. Delete this comment when the section is written. -->
 
 ## Customers
 

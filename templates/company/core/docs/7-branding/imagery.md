@@ -9,7 +9,7 @@ style: guide
 
 # Imagery
 
-<!-- Asgard: filled at step 6 (Brand: look). Delete this comment when the section is written. -->
+<!-- To write at step 6 (Brand: look). Delete this comment when the section is written. -->
 
 ## What our images look like
 

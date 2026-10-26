@@ -14,7 +14,7 @@ product code. Start with `docs/README.md`.
 4. Readiness is evidence. Link every readiness item to its evidence, or mark it missing.
 5. Work on a branch and open a pull request for every change.
 
-<!-- Asgard: step 3 (Charter) adds one invariant per principle of the charter here. -->
+<!-- Step 3 (Charter) adds one invariant per principle of the charter here. -->
 
 ## Map
 

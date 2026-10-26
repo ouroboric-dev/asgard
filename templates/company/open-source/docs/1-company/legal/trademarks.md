@@ -11,5 +11,5 @@ style: legal
 
 > Draft. Not legal advice: a qualified person reviews this before it is published.
 
-<!-- Asgard: filled at step 7 (Business basics). Delete this comment when the section is written. -->
+<!-- To write at step 7 (Business basics). Delete this comment when the section is written. -->
 <!-- How others may and may not use the names and logos. -->

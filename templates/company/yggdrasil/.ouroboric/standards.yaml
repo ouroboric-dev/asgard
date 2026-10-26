@@ -1,0 +1,9 @@
+# The standards this company follows, linked at a pinned version (docs/4-ways-of-working/README.md).
+# Ouroboric's ways of working, from the company template's yggdrasil add-on.
+source: https://github.com/ouroboric-dev/ouroboric
+ref: bfeae79ce2de8f006c02914444d6bc4aa16cd9c7
+standards:
+  spec-driven-development: docs/4-ways-of-working/spec-driven-development.md
+  docs-standard: docs/4-ways-of-working/docs-standard.md
+  writing-styles: docs/4-ways-of-working/writing-styles.md
+  diagrams: docs/4-ways-of-working/diagrams.md

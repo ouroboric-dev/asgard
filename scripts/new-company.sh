@@ -7,8 +7,10 @@
 #   founders     on when --founders is 2 or more (default 1): the founders' agreement
 # In every file it replaces {{COMPANY}} with NAME, {{DATE}} with the date (default: today, UTC) and {{TEMPLATE}} with
 # the version of Asgard it came from. NAME is the company's name, or a neutral placeholder before step 4 (Name).
-# It writes asgard.yaml at DIR's root: the template version, the date, the add-ons. It makes no repository and pushes
-# nothing: the agent or the operator does that, in the founder's own organisation. Agent-run.
+# It writes .ouroboric/company.yaml: the template version, the date, the add-ons. Nothing outside .ouroboric/ names
+# Asgard, Yggdrasil, Ouroboric or any of their parts: the company's files are the founder's own. It makes no
+# repository and pushes nothing: the agent or the operator does that, in the founder's own organisation.
+# Agent-run.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TPL="$HERE/../templates/company"
@@ -54,7 +56,8 @@ while IFS= read -r -d '' f; do
 done < <(find "$dir" -type f -print0)
 
 joined="$(IFS=,; echo "${addons[*]}")"
-cat >"$dir/asgard.yaml" <<EOF
+mkdir -p "$dir/.ouroboric"
+cat >"$dir/.ouroboric/company.yaml" <<EOF
 # Written by Asgard's new-company.sh. Where this company umbrella came from; step 1 of the company kickstart.
 template: $version
 date: $date

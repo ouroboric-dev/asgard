@@ -9,7 +9,7 @@ style: direction
 
 # Admin checklist
 
-<!-- Asgard: filled at step 7 (Business basics). Asgard is not a lawyer or an accountant: mark each item that needs a qualified person. Delete this comment when the section is written. -->
+<!-- To write at step 7 (Business basics). This is not legal, tax or financial advice: mark each item that needs a qualified person. Delete this comment when the section is written. -->
 
 | Item | State | Needs a qualified person? | Notes |
 | --- | --- | --- | --- |

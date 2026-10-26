@@ -11,7 +11,7 @@ style: legal
 
 > Draft. Not legal advice: a qualified person reviews this before clients sign it.
 
-<!-- Asgard: filled at step 7 (Business basics). Delete this comment when the section is written. -->
+<!-- To write at step 7 (Business basics). Delete this comment when the section is written. -->
 
 ## Service agreement
 
