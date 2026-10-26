@@ -20,7 +20,7 @@ tracked() { ! git -C "$1" check-ignore -q "$2"; }
 # shellcheck disable=SC2329
 local_only() { ! ss -ltnH "sport = :$1" | grep -vq "127.0.0.1:$1"; }
 
-"$NEW" --name "tali.photo" --date 2026-10-26 "$T/a" >/dev/null 2>&1
+"$NEW" --name "Example Studio" --date 2026-10-26 "$T/a" >/dev/null 2>&1
 "$NEW" --name "Two Hands" --date 2026-10-26 --no-yggdrasil --open-source --founders 2 "$T/b" >/dev/null 2>&1
 check "the scaffold carries the site's settings in .ouroboric/" [ -f "$T/a/.ouroboric/mkdocs.yml" ]
 check "and nothing for the site at the root" [ ! -e "$T/a/mkdocs.yml" ]
@@ -31,7 +31,7 @@ check "the default scaffold builds with no warnings" [ $? -eq 0 ]
 out="$T/a/.ouroboric/site"
 check "the docs map is the home page" grep -q "The map" "$out/index.html"
 check "the charter is a page" [ -f "$out/1-company/charter/index.html" ]
-check "the page carries the company's name" grep -q "tali.photo charter" "$out/1-company/charter/index.html"
+check "the page carries the company's name" grep -q "Example Studio charter" "$out/1-company/charter/index.html"
 check "the guidance comments are not shown" hidden "$out/1-company/charter/index.html" "To write at step 3"
 "$SITE" build "$T/b" >/dev/null 2>&1
 check "every add-on builds with no warnings" [ $? -eq 0 ]

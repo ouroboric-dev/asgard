@@ -35,7 +35,7 @@ if ! command -v pre-commit >/dev/null; then
 fi
 
 # A company repo: scaffolded, committed. Each case below changes a copy of it.
-"$NEW" --name "tali.photo" --date 2026-10-26 "$T/a" >/dev/null 2>&1
+"$NEW" --name "Example Studio" --date 2026-10-26 "$T/a" >/dev/null 2>&1
 git -C "$T/a" init -q -b main
 git -C "$T/a" -c user.name=t -c user.email=t@example.com add -A
 git -C "$T/a" -c user.name=t -c user.email=t@example.com commit -q -m scaffold
