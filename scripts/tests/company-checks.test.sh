@@ -5,6 +5,9 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NEW="$HERE/../new-company.sh"
+# The base CI's pieces, beside this repo in the tree; the comparison is skipped without them.
+BASE_CI="$HERE/../../../ouroboric/scripts/templates/ci"
+[ -d "$BASE_CI/pieces" ] || BASE_CI=""
 T="$(mktemp -d)"
 trap 'rm -rf -- "$T"' EXIT
 fail=0
@@ -13,6 +16,13 @@ check() { local d="$1"; shift; if "$@"; then echo "ok   $d"; else echo "FAIL $d"
 passes() { (cd "$1" && .ouroboric/checks/run.sh) >"$1.out" 2>&1; }
 # shellcheck disable=SC2329
 fails() { ! passes "$1"; }
+# shellcheck disable=SC2329
+has_all() { local d="$1" f; shift; for f in "$@"; do [ -f "$d/$f" ] || return 1; done; }
+# shellcheck disable=SC2329
+same_as_base_ci() { [ -n "$BASE_CI" ] || return 0
+  cmp -s "$1/.markdownlint.yaml" "$BASE_CI/pieces/markdown.files/.markdownlint.yaml" &&
+    cmp -s "$1/.yamllint.yaml" "$BASE_CI/pieces/yaml.files/.yamllint.yaml" &&
+    cmp -s "$1/.pre-commit-config.yaml" <(echo "repos:"; cat "$BASE_CI/pieces/"{gitleaks,markdown,actions,yaml}.yaml); }
 # shellcheck disable=SC2329
 says() { grep -q -- "$2" "$1.out"; }
 
@@ -37,7 +47,11 @@ commit() { git -C "$1" -c user.name=t -c user.email=t@example.com add -A &&
 
 check "the scaffold has the CI workflow" [ -f "$T/a/.github/workflows/checks.yml" ]
 check "the checks live in .ouroboric/" [ -x "$T/a/.ouroboric/checks/run.sh" ]
-check "no lint settings at the root" [ -z "$(find "$T/a" -maxdepth 1 -name '.pre-commit*' -o -maxdepth 1 -name '.markdownlint*' -o -maxdepth 1 -name '.yamllint*')" ]
+check "the lint settings sit at the root, as in any repo" has_all "$T/a" .pre-commit-config.yaml .markdownlint.yaml \
+  .yamllint.yaml
+check "and .ouroboric/ holds none of them" [ -z "$(find "$T/a/.ouroboric" -name '*pre-commit*' -o -name '.markdownlint*' \
+  -o -name '*yamllint*')" ]
+check "the lint settings are the base CI's" same_as_base_ci "$T/a"
 check "the workflow runs the same checks" grep -q "\.ouroboric/checks/run\.sh" "$T/a/.github/workflows/checks.yml"
 check "a fresh scaffold passes every check" passes "$T/a"
 "$NEW" --name "Two Hands" --date 2026-10-26 --no-yggdrasil --open-source --founders 2 "$T/b" >/dev/null 2>&1
