@@ -1,4 +1,4 @@
-# The company's docs as pages, for review on this machine only: Asgard's company-site.sh builds and serves them.
+# The company's docs as pages, for review on this machine only.
 site_name: "{{COMPANY}}"
 docs_dir: ../docs
 site_dir: site

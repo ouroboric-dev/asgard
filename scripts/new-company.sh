@@ -58,7 +58,7 @@ done < <(find "$dir" -type f -print0)
 joined="$(IFS=,; echo "${addons[*]}")"
 mkdir -p "$dir/.ouroboric"
 cat >"$dir/.ouroboric/company.yaml" <<EOF
-# Written by Asgard's new-company.sh. Where this company umbrella came from; step 1 of the company kickstart.
+# Where this company umbrella came from: written when the company was set up.
 template: $version
 date: $date
 addons: [${joined//,/, }]
