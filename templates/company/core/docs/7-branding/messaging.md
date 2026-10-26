@@ -9,7 +9,7 @@ style: marketing
 
 # Messaging
 
-<!-- Asgard: filled at step 5 (Brand: words). Delete this comment when the section is written. -->
+<!-- To write at step 5 (Brand: words). Delete this comment when the section is written. -->
 
 ## Positioning line
 

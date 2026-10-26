@@ -9,7 +9,7 @@ style: legal
 
 # Legal
 
-<!-- Asgard: filled at step 7 (Business basics). Each document here is a draft until a qualified person has reviewed it; say so at its top. Delete this comment when the section is written. -->
+<!-- To write at step 7 (Business basics). Each document here is a draft until a qualified person has reviewed it; say so at its top. Delete this comment when the section is written. -->
 
 - [Client terms](client-terms.md): the service agreement, the usage licence and, where people appear in the work,
   the model release.

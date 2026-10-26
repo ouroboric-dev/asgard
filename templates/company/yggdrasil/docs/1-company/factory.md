@@ -9,9 +9,9 @@ style: direction
 
 # Factory budget
 
-What building the company's products with Yggdrasil may cost, and the caps that stop it.
+What building the company's products with its software factory may cost, and the caps that stop it.
 
-<!-- Asgard: filled at step 7 (Business basics). Answers readiness RB-13. Delete this comment when the section is written. -->
+<!-- To write at step 7 (Business basics). Answers readiness RB-13. Delete this comment when the section is written. -->
 
 | Item | Cap per run | Cap per day | Cap per month | Where the cap is set |
 | --- | --- | --- | --- | --- |

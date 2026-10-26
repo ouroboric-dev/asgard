@@ -11,7 +11,7 @@ style: legal
 
 > Draft. Not legal advice: a qualified person reviews this before it is published.
 
-<!-- Asgard: filled at step 7 (Business basics). Delete this comment when the section is written. -->
+<!-- To write at step 7 (Business basics). Delete this comment when the section is written. -->
 
 | Data | Why it is kept | Where | How long | Who can see it |
 | --- | --- | --- | --- | --- |

@@ -9,7 +9,7 @@ style: guide
 
 # Voice
 
-<!-- Asgard: filled at step 5 (Brand: words). The web realm writes interface text from this guide. Delete this comment when the section is written. -->
+<!-- To write at step 5 (Brand: words). The products' interface text is written from this guide. Delete this comment when the section is written. -->
 
 ## Personality
 

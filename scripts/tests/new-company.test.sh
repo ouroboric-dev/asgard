@@ -27,8 +27,12 @@ check "one founder gets no founders' agreement" [ ! -e "$T/a/docs/1-company/foun
 check "every placeholder is filled" none "$T/a" "{{"
 check "the name is filled in" grep -q "tali.photo" "$T/a/docs/1-company/charter.md"
 check "the date is filled in" grep -q "^date: 2026-10-26$" "$T/a/docs/1-company/charter.md"
-check "the template's version is recorded" grep -q "^template: " "$T/a/asgard.yaml"
-check "the add-ons are recorded" grep -q "^addons: \[yggdrasil\]$" "$T/a/asgard.yaml"
+check "the template's version is recorded" grep -q "^template: " "$T/a/.ouroboric/company.yaml"
+check "the add-ons are recorded" grep -q "^addons: \[yggdrasil\]$" "$T/a/.ouroboric/company.yaml"
+check "no configuration file at the root" [ ! -e "$T/a/asgard.yaml" ]
+# The founder's files never name the factory or its parts; what the factory needs stays in .ouroboric/.
+leaks() { grep -rIliE --exclude-dir=.ouroboric "(^|[^.])\b(asgard|yggdrasil|ouroboric|ygg|odin|gungnir|gleipnir|jormungandr|havamal|voluspa|niflheim|helheim|midgard|realm)\b" "$1"; }
+check "no file outside .ouroboric/ names the factory (default)" [ -z "$(leaks "$T/a")" ]
 check "the tokens are valid JSON" python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$T/a/docs/7-branding/identity/tokens.json"
 
 # Add-ons on and off.
@@ -36,7 +40,8 @@ check "the tokens are valid JSON" python3 -c "import json,sys; json.load(open(sy
 check "no Yggdrasil add-on when turned off" [ ! -e "$T/b/docs/4-ways-of-working/README.md" ]
 check "the open-source add-on when turned on" has "$T/b" docs/1-company/legal/licences.md
 check "two founders get a founders' agreement" has "$T/b" docs/1-company/founders-agreement.md
-check "the add-ons are recorded in order" grep -q "^addons: \[open-source, founders\]$" "$T/b/asgard.yaml"
+check "the add-ons are recorded in order" grep -q "^addons: \[open-source, founders\]$" "$T/b/.ouroboric/company.yaml"
+check "no file outside .ouroboric/ names the factory (every add-on)" [ -z "$(leaks "$T/b")" ]
 
 # Refusals.
 mkdir -p "$T/c" && echo x >"$T/c/keep"

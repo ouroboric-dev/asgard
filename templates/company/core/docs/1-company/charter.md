@@ -9,7 +9,7 @@ style: direction
 
 # {{COMPANY}} charter
 
-<!-- Asgard: filled at step 3 (Charter), from the intent notes and the customers and offer. Answers readiness RB-01. The founder approves it at the charter stop. Delete this comment when the section is written. -->
+<!-- To write at step 3 (Charter), from the intent notes and the customers and offer. Answers readiness RB-01. The founder approves it at the charter stop. Delete this comment when the section is written. -->
 
 ## Vision
 
