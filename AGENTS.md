@@ -28,5 +28,6 @@ A child `AGENTS.md` may add rules; it must not loosen these.
   `scripts/new-company.sh`, tested by `scripts/tests/new-company.test.sh`. Its docs render as pages on
   this machine only with `scripts/company-site.sh build|serve DIR`, tested by `scripts/tests/company-site.test.sh`
   (needs mkdocs with the Material theme). Its checks (`.ouroboric/checks/run.sh`, run by its CI) are tested by
-  `scripts/tests/company-checks.test.sh`.
+  `scripts/tests/company-checks.test.sh`. CI (`.github/workflows/ci.yml`, the check `test`) runs every
+  `scripts/tests/*.test.sh` on each pull request.
 - Standards: <https://github.com/ouroboric-dev/ouroboric/tree/main/docs/4-ways-of-working>
