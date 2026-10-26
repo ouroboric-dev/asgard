@@ -13,7 +13,7 @@ has() { [ -f "$1/$2" ]; }
 none() { ! grep -rq -- "$2" "$1"; }
 
 # The default: core and the Yggdrasil add-on, one founder.
-"$NEW" --name "tali.photo" --date 2026-10-26 "$T/a" >"$T/a.out" 2>&1
+"$NEW" --name "Example Studio" --date 2026-10-26 "$T/a" >"$T/a.out" 2>&1
 check "the default scaffold succeeds" [ $? -eq 0 ]
 check "it writes the core: charter" has "$T/a" docs/1-company/charter.md
 check "it writes the core: customers and offer" has "$T/a" docs/1-company/customers-and-offer.md
@@ -25,7 +25,7 @@ check "the Yggdrasil add-on is on by default" has "$T/a" .ouroboric/standards.ya
 check "the open-source add-on is off by default" [ ! -e "$T/a/docs/1-company/legal/licences.md" ]
 check "one founder gets no founders' agreement" [ ! -e "$T/a/docs/1-company/founders-agreement.md" ]
 check "every placeholder is filled" none "$T/a" "{{"
-check "the name is filled in" grep -q "tali.photo" "$T/a/docs/1-company/charter.md"
+check "the name is filled in" grep -q "Example Studio" "$T/a/docs/1-company/charter.md"
 check "the date is filled in" grep -q "^date: 2026-10-26$" "$T/a/docs/1-company/charter.md"
 check "the template's version is recorded" grep -q "^template: " "$T/a/.ouroboric/company.yaml"
 check "the add-ons are recorded" grep -q "^addons: \[yggdrasil\]$" "$T/a/.ouroboric/company.yaml"
