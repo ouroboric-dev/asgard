@@ -1,0 +1,26 @@
+# The lint hooks: the base CI's pieces (gitleaks, markdown, actions, yaml) with their settings in this folder.
+# Every revision is a release tag at least two weeks old.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+      - id: gitleaks
+        alias: gitleaks-history
+        name: Detect hardcoded secrets in the whole history
+        entry: gitleaks git --redact --verbose
+        stages: [manual]
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.23.3
+    hooks:
+      - id: markdownlint-cli2
+        args: [--config, .ouroboric/checks/.markdownlint.yaml]
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        args: [-c, .ouroboric/checks/yamllint.yaml]

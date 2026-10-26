@@ -27,5 +27,6 @@ A child `AGENTS.md` may add rules; it must not loosen these.
 - The company template: `templates/company/` (`core/` and one folder per add-on); scaffold it with
   `scripts/new-company.sh`, tested by `scripts/tests/new-company.test.sh`. Its docs render as pages on
   this machine only with `scripts/company-site.sh build|serve DIR`, tested by `scripts/tests/company-site.test.sh`
-  (needs mkdocs with the Material theme).
+  (needs mkdocs with the Material theme). Its checks (`.ouroboric/checks/run.sh`, run by its CI) are tested by
+  `scripts/tests/company-checks.test.sh`.
 - Standards: <https://github.com/ouroboric-dev/ouroboric/tree/main/docs/4-ways-of-working>
