@@ -7,6 +7,10 @@
     brand_fixtures.py dark3 TRACE         exit 0 when the first proposal's dark value reaches 3:1 on #121212
     brand_fixtures.py ico PATH            exit 0 when the ICO holds 16, 32 and 48 pixels
     brand_fixtures.py icons LOGO_DIR      exit 0 when both icons are opaque, with every mark pixel in the safe zone
+    brand_fixtures.py font TOKENS DIR FAMILY FLAVOR   build an OFL font (FLAVOR ttf or woff2) in DIR, set the heading role
+    brand_fixtures.py photo PATH SIZE     a sample photo, SIZE pixels on its long side
+    brand_fixtures.py record IMAGERY FILE PERSON CONSENT   add a row to imagery.md's sample images table
+    brand_fixtures.py ink PATH            exit 0 when the image holds more than one colour (something is drawn)
 """
 import json
 import sys
@@ -93,10 +97,65 @@ def save(path, data):
         json.dump(data, fh, indent=2)
 
 
+def font(tokens, folder, family, flavor):
+    import os
+
+    from fontTools.fontBuilder import FontBuilder
+    from fontTools.pens.ttGlyphPen import TTGlyphPen
+
+    os.makedirs(folder, exist_ok=True)
+    fb = FontBuilder(1000, isTTF=True)
+    order = [".notdef"] + [chr(c) for c in range(0x41, 0x5B)] + [chr(c) for c in range(0x61, 0x7B)]
+    fb.setupGlyphOrder(order)
+    fb.setupCharacterMap({ord(g): g for g in order[1:]})
+    glyphs, metrics = {}, {}
+    for g in order:
+        pen = TTGlyphPen(None)
+        pen.moveTo((50, 0))
+        pen.lineTo((300, 700))
+        pen.lineTo((550, 0))
+        pen.closePath()
+        glyphs[g], metrics[g] = pen.glyph(), (600, 50)
+    fb.setupGlyf(glyphs)
+    fb.setupHorizontalMetrics(metrics)
+    fb.setupHorizontalHeader(ascent=800, descent=-200)
+    ps = family.replace(" ", "") + "-Regular"
+    names = {"familyName": family, "styleName": "Regular"}
+    if flavor != "bare":  # "bare": only the family and style names, a font the renderer cannot load
+        names.update({"uniqueFontIdentifier": f"1.000;TEST;{ps}", "fullName": f"{family} Regular", "psName": ps,
+                      "version": "Version 1.000"})
+    fb.setupNameTable(names)
+    fb.setupOS2(usWeightClass=400, fsType=0)
+    fb.setupPost()
+    if flavor == "woff2":
+        fb.font.flavor = "woff2"
+    fb.save(os.path.join(folder, f"Test-Regular.{'ttf' if flavor == 'bare' else flavor}"))
+    with open(os.path.join(folder, "OFL.txt"), "w", encoding="utf-8") as fh:
+        fh.write("SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007\n")
+    t = load(tokens)
+    rel = os.path.relpath(folder, os.path.dirname(tokens))
+    t["type"]["fonts"]["heading"].update({"family": family, "fallback": "serif", "weights": [400], "files": rel,
+                                          "licence": "OFL-1.1", "source": "https://example.org/fonts"})
+    save(tokens, t)
+
+
 def main(args):
     cmd = args[0]
     if cmd == "draw":
         draw(args[1], args[2])
+    elif cmd == "font":
+        font(*args[1:5])
+    elif cmd == "photo":
+        size = int(args[2])
+        im = Image.new("RGB", (size, size * 2 // 3), (120, 140, 160))
+        ImageDraw.Draw(im).ellipse((size // 4, size // 8, size * 3 // 4, size // 2), fill=(200, 160, 120))
+        im.save(args[1])
+    elif cmd == "ink":
+        im = Image.open(args[1]).convert("RGB")
+        return 0 if len(im.getcolors(1 << 24) or []) > 1 else 1
+    elif cmd == "record":
+        with open(args[1], "a", encoding="utf-8") as fh:
+            fh.write(f"| {args[2]} | {args[3]} | {args[4]} |\n")
     elif cmd == "palette":
         t = load(args[1])
         for mode, values in GOOD.items():

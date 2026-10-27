@@ -132,4 +132,90 @@ check "favicon.svg holds only svg, path and style" svg_clean "$L/favicon.svg"
 check "favicon.ico holds 16, 32 and 48 pixels (5.3.13)" fx ico "$L/favicon.ico"
 check "the icons are opaque, with the mark inside the safe-zone circle (5.3.14)" fx icons "$L"
 
+# The brand board (spec §5.4, with the founder's answers of 2026-10-27: plain Markdown and generated images).
+ID_REL=docs/7-branding/identity
+board() { "$BRAND" board "$C" >"$C.board.out" 2>&1; echo $? >"$C.board.code"; }
+# shellcheck disable=SC2329 # these run through check
+bcode() { [ "$(cat "$C.board.code")" = "$1" ]; }
+# shellcheck disable=SC2329
+board_fresh() { "$BRAND" board --check "$C" >/dev/null 2>&1; }
+# shellcheck disable=SC2329
+company_fresh() { (cd "$C" && python3 .ouroboric/checks/brand.py board-fresh >/dev/null); }
+# shellcheck disable=SC2329
+board_stale() { ! board_fresh; }
+# shellcheck disable=SC2329
+company_stale() { ! company_fresh; }
+# shellcheck disable=SC2329
+says_all() { local f="$1" p; shift; for p in "$@"; do grep -q -- "$p" "$f" || return 1; done; }
+# shellcheck disable=SC2329
+in_order() { local f="$1" last=0 n; shift; for h in "$@"; do
+  n="$(grep -n -m1 -- "^## $h" "$f" | cut -d: -f1)"; [ -n "$n" ] && [ "$n" -gt "$last" ] || return 1; last="$n"; done; }
+# shellcheck disable=SC2329
+no_html() { ! grep -vE '^<!--.*-->$' "$1" | grep -qE '<[a-zA-Z/]'; }
+# shellcheck disable=SC2329
+local_only() { ! grep -qE 'https?://|\]\(/|<script' "$1"; }
+# shellcheck disable=SC2329
+board_images_clean() { local f; for f in "$1"/*; do
+  case "$f" in
+    *.png) ;;
+    *.svg) ! grep -o '<[a-zA-Z][a-zA-Z]*' "$f" | sort -u | grep -qvxE '<(svg|path|rect|g|text)' || return 1 ;;
+    *) return 1 ;;
+  esac; done; }
+# shellcheck disable=SC2329
+builds() { (cd "$1" && mkdocs build --strict --quiet --config-file .ouroboric/mkdocs.yml); }
+# shellcheck disable=SC2329
+docs_pass() { (cd "$1" && python3 .ouroboric/checks/docs-check.py); }
+board_sums() { (cd "$C/$ID_REL" && sha256sum board.md board/*); }
+
+use bempty; board
+check "board runs on a company with nothing chosen yet" bcode 0
+check "and writes the board with its five parts in order (5.4.1)" \
+  in_order "$C/$ID_REL/board.md" Palette Type Logo "Sample images" "Open items"
+check "board --check passes right after board" board_fresh
+
+use bfull; TK="$C/$ID_REL/tokens.json"; fx palette "$TK"; fx font "$TK" "$C/$ID_REL/fonts/test" "Test Serif" ttf
+fx draw mark "$SRC/logo.png"; fx draw square "$SRC/mark.png"
+mkdir -p "$C/docs/7-branding/imagery"
+fx photo "$C/docs/7-branding/imagery/portrait.png" 1200; fx photo "$C/docs/7-branding/imagery/detail.png" 800
+fx record "$C/docs/7-branding/imagery.md" portrait.png yes "confirmed by the founder, 2026-10-27"
+(cd "$C" && "$PY" -I .ouroboric/checks/brand.py tokens --write >/dev/null)
+logo; board
+B="$C/$ID_REL/board.md"
+check "a full board is written" bcode 0
+check "its five parts are in order (5.4.1)" in_order "$B" Palette Type Logo "Sample images" "Open items"
+check "it shows the light and the dark palette at the same time (5.4.2)" \
+  says_all "$B" "board/palette-light.svg" "board/palette-dark.svg"
+check "each contrast result is in words (5.4.3)" says "$B" "passes"
+check "the board holds no HTML element (5.4.9)" no_html "$B"
+check "no script, no external URL and no absolute link (5.4.4)" local_only "$B"
+check "its images are SVGs of the allowed elements, or PNGs (5.4.10)" board_images_clean "$C/$ID_REL/board"
+check "the heading font has a type specimen, with the text drawn" fx ink "$C/$ID_REL/board/type-heading.png"
+check "the logo is shown on each background" test -f "$C/$ID_REL/board/logo-on-dark.svg"
+check "a sample image with no record is an open item" says "$B" "detail.png"
+check "a proposed brand token is an open item" says "$B" "#C2185B"
+check "the pages build strictly after board (5.4.5)" builds "$C"
+check "the docs check passes after board" docs_pass "$C"
+check "the names check passes after board (5.4.6)" names_pass "$C"
+sums="$(board_sums)"; board
+check "a second board writes byte-identical files" [ "$(board_sums)" = "$sums" ]
+check "board --check passes while nothing changed" board_fresh
+fx record "$C/docs/7-branding/imagery.md" detail.png no ""
+check "board --check fails when an input changed (5.4.7)" board_stale
+check "and so does the company's freshness check" company_stale
+
+use bwoff; TK="$C/$ID_REL/tokens.json"; fx palette "$TK"; fx font "$TK" "$C/$ID_REL/fonts/test" "Test Serif" woff2
+board
+check "a WOFF2 font is converted for its specimen (the change of 2026-10-27)" fx ink "$C/$ID_REL/board/type-heading.png"
+
+use bbare; TK="$C/$ID_REL/tokens.json"; fx palette "$TK"; fx font "$TK" "$C/$ID_REL/fonts/test" "Test Serif" bare
+board
+check "a font the renderer cannot load gets no blank specimen" test ! -f "$C/$ID_REL/board/type-heading.png"
+check "it is shown in words and listed as an open item" says "$C/$ID_REL/board.md" "could not be drawn"
+
+use bmany; mkdir -p "$C/docs/7-branding/imagery"
+for i in 1 2 3 4 5 6 7; do fx photo "$C/docs/7-branding/imagery/p$i.png" 600; done; board
+check "board refuses more than six sample images (5.4.11)" bcode 2
+use bbig; mkdir -p "$C/docs/7-branding/imagery"; fx photo "$C/docs/7-branding/imagery/big.png" 2000; board
+check "board refuses a sample image over 1600 pixels (5.4.11)" bcode 2
+
 exit "$fail"
