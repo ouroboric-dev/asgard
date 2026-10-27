@@ -12,6 +12,7 @@ step() { local name="$1"; shift; echo "== $name"; if "$@"; then echo "ok   $name
 step "lint" pre-commit run --all-files --show-diff-on-failure
 step "secrets in the whole history" pre-commit run --hook-stage manual gitleaks-history --all-files
 step "docs: front matter, file names, links" python3 "$C/docs-check.py"
+step "brand: contrast, fonts, generated files" python3 "$C/brand.py" check
 step "docs: the pages build" mkdocs build --strict --clean --quiet --config-file .ouroboric/mkdocs.yml
 step "no tool names outside .ouroboric/" "$C/names-check.sh"
 exit "$fail"

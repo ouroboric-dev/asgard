@@ -2,7 +2,7 @@
 title: Identity
 status: draft
 date: {{DATE}}
-related: [tokens.json, logo/README.md, ../imagery.md]
+related: [tokens.json, board.md, logo/README.md, ../imagery.md]
 style: guide
 ---
 
@@ -11,7 +11,7 @@ style: guide
 
 The design language of {{COMPANY}}: every product's design is built from it, so all the company's products share
 one look and feel. [tokens.json](tokens.json) is the source the products read; [tokens.css](tokens.css) is its CSS
-form.
+form. The [brand board](board.md) shows it all together.
 
 <!-- To write at step 6 (Brand: look). Answers readiness RB-21. The founder approves it at the brand stop, from the brand board. Delete this comment when the section is written. -->
 

@@ -9,6 +9,8 @@ validation:
   absolute_links: warn
   unrecognized_links: warn
 use_directory_urls: true
+extra_css:
+  - 7-branding/identity/fonts.css
 theme:
   name: material
   features:

@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: install the tools the tests run
-        run: pip install pre-commit==4.6.2 mkdocs==1.5.3 mkdocs-material==9.2.7
+        run: pip install pre-commit==4.6.2 mkdocs==1.5.3 mkdocs-material==9.2.7 'fonttools[woff]==4.66.1' brotli==1.2.0
       - name: test
         working-directory: asgard
         run: |

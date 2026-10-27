@@ -1,2 +1,10 @@
-/* {{COMPANY}} design tokens, as CSS custom properties. Generated from tokens.json at step 6 (Brand: look). */
-:root {}
+/* Generated from tokens.json: do not edit. The light palette is the default; the dark palette applies
+   under prefers-color-scheme: dark and under data-theme="dark". */
+:root {
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  }
+}
+:root[data-theme="dark"] {
+}
