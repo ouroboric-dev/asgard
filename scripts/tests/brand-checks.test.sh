@@ -106,7 +106,8 @@ assert rows and all(keys <= r.keys() for r in rows), rows[:1]
 
 # The font licence check (spec §5.2). Fonts are built here with fontTools; no font file is committed.
 ID="$T/a/docs/7-branding/identity"
-# font FILE FAMILY [FSTYPE] [DESCRIPTION] [URL]: a minimal TrueType font with those name and OS/2 values.
+# font FILE FAMILY [FSTYPE] [DESCRIPTION] [URL] [variable]: a minimal TrueType font with those name and OS/2
+# values; "variable" gives it a weight axis from 100 to 900.
 font() {
   python3 - "$@" <<'EOF'
 import sys
@@ -116,6 +117,7 @@ path, family = sys.argv[1], sys.argv[2]
 fstype = int(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3] else 0
 desc = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else None
 url = sys.argv[5] if len(sys.argv) > 5 and sys.argv[5] else None
+variable = len(sys.argv) > 6 and sys.argv[6] == "variable"
 fb = FontBuilder(1000, isTTF=True)
 fb.setupGlyphOrder([".notdef", "A"])
 fb.setupCharacterMap({ord("A"): "A"})
@@ -133,6 +135,8 @@ if url:
 fb.setupNameTable(names)
 fb.setupOS2(fsType=fstype)
 fb.setupPost()
+if variable:
+    fb.setupFvar(axes=[("wght", 100, 400, 900, "Weight")], instances=[])
 fb.save(path)
 EOF
 }
@@ -264,6 +268,14 @@ check "with font-display: swap" says "$ID/fonts.css" "font-display: swap;"
 sum1="$(sha256sum "$CSS" "$ID/fonts.css")"; brand tokens --write
 check "a second --write gives byte-identical files" [ "$(sha256sum "$CSS" "$ID/fonts.css")" = "$sum1" ]
 check "the pages build strictly with fonts.css" builds "$T/a"
+fresh; mkdir -p "$ID/fonts/test"; printf '%s\n' "$OFL" >"$ID/fonts/test/OFL.txt"
+font "$ID/fonts/test/Test-Variable.ttf" "Test Serif" 0 "" "" variable; role heading "Test Serif" fonts/test OFL-1.1
+brand tokens --write
+check "a variable font gets its weight range in fonts.css" says "$ID/fonts.css" "font-weight: 100 900;"
+fresh; ofl_font "Test Serif"; role heading "Test Serif" fonts/test OFL-1.1
+(cd "$T/a" && python3 -S .ouroboric/checks/brand.py fonts) >"$T/out" 2>&1; echo $? >"$T/code"
+check "without fontTools the font check stops with code 2" code 2
+check "and says what it needs" says "$T/out" "needs fontTools"
 
 fresh; git -C "$T/a" checkout -q -- docs/7-branding/identity 2>/dev/null; cp "$T/tokens.css.template" "$CSS"
 cp "$T/fonts.css.template" "$ID/fonts.css"; brand board-fresh

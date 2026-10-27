@@ -159,10 +159,19 @@ def known_licence(text):
     return None
 
 
+def open_font(path):
+    """A font file read with fontTools, which only the checks that read font files need."""
+    try:
+        from fontTools.ttLib import TTFont
+    except ImportError:
+        raise CannotRun("the font check needs fontTools 4.66.1 and Brotli 1.2.0 to read the font files: "
+                        "pip install fonttools==4.66.1 brotli==1.2.0")
+    return TTFont(path, lazy=True)
+
+
 def font_facts(path):
     """The family name, the licence description and URL, and fsType of one font file."""
-    from fontTools.ttLib import TTFont
-    font = TTFont(path, lazy=True)
+    font = open_font(path)
     name = font["name"]
     family = name.getDebugName(16) or name.getDebugName(1)
     return family, name.getDebugName(13) or "", name.getDebugName(14) or "", font["OS/2"].fsType
@@ -307,9 +316,13 @@ def fonts_css(tokens):
             if ext not in FORMATS or rel in seen:
                 continue
             seen.add(rel)
-            from fontTools.ttLib import TTFont
-            font = TTFont(os.path.join(folder, n), lazy=True)
-            weight = font["OS/2"].usWeightClass
+            font = open_font(os.path.join(folder, n))
+            # a variable font covers a range of weights: its weight axis, not its default instance
+            axes = {a.axisTag: a for a in font["fvar"].axes} if "fvar" in font else {}
+            if "wght" in axes:
+                weight = f"{axes['wght'].minValue:g} {axes['wght'].maxValue:g}"
+            else:
+                weight = font["OS/2"].usWeightClass
             italic = bool(font["OS/2"].fsSelection & 1)
             out += ["@font-face {", f'  font-family: "{spec["family"]}";',
                     f'  src: url("{rel}") format("{FORMATS[ext]}");', f"  font-weight: {weight};",

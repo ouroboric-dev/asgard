@@ -11,6 +11,7 @@
     brand_fixtures.py photo PATH SIZE     a sample photo, SIZE pixels on its long side
     brand_fixtures.py record IMAGERY FILE PERSON CONSENT   add a row to imagery.md's sample images table
     brand_fixtures.py ink PATH            exit 0 when the image holds more than one colour (something is drawn)
+    brand_fixtures.py trace-shades TRACE  write a trace.json with three shades of one token (a soft-edged logo)
 """
 import json
 import sys
@@ -150,6 +151,16 @@ def main(args):
         im = Image.new("RGB", (size, size * 2 // 3), (120, 140, 160))
         ImageDraw.Draw(im).ellipse((size // 4, size // 8, size * 3 // 4, size // 2), fill=(200, 160, 120))
         im.save(args[1])
+    elif cmd == "trace-shades":  # a trace.json whose dark shades all map to one token, as a real soft-edged logo gives
+        shades = ["#2D2523", "#2E2524", "#2E2624"]
+        light = [{"traced": s, "token": "text", "value": "#1A1A1A", "delta": 0.01} for s in shades]
+        light.append({"traced": "#9C5650", "token": "accent", "value": "#0B5FCC", "delta": 0.0})
+        dark = [{"token": "text", "value": "#EDEDED"} for _ in shades] + [{"token": "accent", "value": "#6EA8FE"}]
+        save(args[1], {"inputs": {}, "tracer": {"name": "vtracer", "version": "0.6.15", "params": {}},
+                       "modes": {"light": {"from": "given", "mismatch": 0.0, "shapes": [1, 1], "holes": [0, 0],
+                                           "colour_delta": 0.0, "colours": light},
+                                 "dark": {"from": "derived", "colours": dark}},
+                       "proposed_brand_tokens": [], "gaps": [], "faithful": True})
     elif cmd == "ink":
         im = Image.open(args[1]).convert("RGB")
         return 0 if len(im.getcolors(1 << 24) or []) > 1 else 1
