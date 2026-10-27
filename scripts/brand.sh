@@ -13,7 +13,15 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB="$HERE/brand"
 die() { echo "brand.sh: $*" >&2; exit 2; }
 
-key="$(cat "$LIB/requirements.txt" "$LIB/resvg.lock" | sha256sum | cut -c1-16)"
+# VTracer 0.6.15 installs on Python 3.14 but crashes when it traces, so the tools use the newest of 3.13 to 3.10.
+PY=""
+for v in 3.13 3.12 3.11 3.10; do
+  if command -v "python$v" >/dev/null; then PY="python$v"; break; fi
+done
+if [ -z "$PY" ] && command -v python3 >/dev/null &&
+  python3 -c 'import sys; sys.exit(0 if (3, 10) <= sys.version_info[:2] <= (3, 13) else 1)'; then PY=python3; fi
+
+key="$({ cat "$LIB/requirements.txt" "$LIB/resvg.lock"; [ -z "$PY" ] || "$PY" -V; } | sha256sum | cut -c1-16)"
 ENV="${XDG_CACHE_HOME:-$HOME/.cache}/asgard/brand/$key"
 
 platform() {
@@ -27,8 +35,9 @@ platform() {
 
 setup() {
   if [ -f "$ENV/.complete" ]; then echo "brand.sh: the tools are up to date ($ENV)"; return 0; fi
+  [ ! -e "$ENV" ] || die "an incomplete environment is in $ENV: remove that folder, then run setup again"
+  [ -n "$PY" ] || die "the brand tools need Python 3.10 to 3.13 (VTracer crashes on 3.14); install one of them"
   local work p url sum
-  rm -rf "$ENV"
   mkdir -p "$(dirname "$ENV")"
   work="$(mktemp -d "$(dirname "$ENV")/.setup.XXXXXX")"
   trap 'rm -rf -- "$work"' RETURN
@@ -45,10 +54,19 @@ setup() {
       "$work/download/resvg.archive" "$work/bin" ;;
   esac
   chmod +x "$work/bin/resvg"
-  python3 -m venv "$work/venv"
+  "$PY" -m venv "$work/venv"
   "$work/venv/bin/pip" install --quiet --disable-pip-version-check --require-hashes --only-binary :all: \
     -r "$LIB/requirements.txt" || die "pip could not install the pinned packages"
-  rm -rf "$work/download"
+  # A smoke trace: an environment that installs but cannot trace is refused here, not at step 6.
+  "$work/venv/bin/python" -I -c '
+import sys, vtracer
+from PIL import Image, ImageDraw
+im = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+ImageDraw.Draw(im).ellipse((8, 8, 56, 56), fill=(26, 26, 26, 255))
+im.save(sys.argv[1] + "/smoke.png")
+vtracer.convert_image_to_svg_py(sys.argv[1] + "/smoke.png", sys.argv[1] + "/smoke.svg", colormode="color")
+sys.exit(0 if "<path" in open(sys.argv[1] + "/smoke.svg").read() else 1)' "$work" ||
+    die "the tools installed but could not trace a test image with $("$PY" -V)"
   mv "$work" "$ENV"
   # The venv's scripts name the folder it was made in; the tools run its python by path, so the move is safe.
   touch "$ENV/.complete"
