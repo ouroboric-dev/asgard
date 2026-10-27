@@ -166,6 +166,15 @@ builds() { (cd "$1" && mkdocs build --strict --quiet --config-file .ouroboric/mk
 # shellcheck disable=SC2329
 docs_pass() { (cd "$1" && python3 .ouroboric/checks/docs-check.py); }
 board_sums() { (cd "$C/$ID_REL" && sha256sum board.md board/*); }
+# shellcheck disable=SC2329
+no_pycache() { [ -z "$(find "$1" -name __pycache__)" ]; }
+# shellcheck disable=SC2329
+no_message_swatch() { ! grep -qE '>(ok|warn|crit)</text>' "$1"; }
+# shellcheck disable=SC2329
+no_message_pairs() { ! grep -qE '^\| (ok|warn|crit) on ' "$1"; }
+# shellcheck disable=SC2329
+one_row_per_token() {   # the logo's colour table: one row for each mode and token
+  [ -z "$(grep -E '^\| (light|dark) \|' "$1" | awk -F'|' '{gsub(/ /, "", $2); gsub(/ /, "", $4); print $2 "/" $4}' | sort | uniq -d)" ]; }
 
 use bempty; board
 check "board runs on a company with nothing chosen yet" bcode 0
@@ -202,6 +211,14 @@ check "board --check passes while nothing changed" board_fresh
 fx record "$C/docs/7-branding/imagery.md" detail.png no ""
 check "board --check fails when an input changed (5.4.7)" board_stale
 check "and so does the company's freshness check" company_stale
+check "the board leaves no Python cache in the company" no_pycache "$C"
+check "the palette panels show the brand colours, not the message colours" no_message_swatch "$C/$ID_REL/board/palette-light.svg"
+check "the contrast tables leave the message colours out" no_message_pairs "$B"
+check "and the board says where the message colours are" says "$B" "message colours"
+
+use bshades; fx palette "$C/$ID_REL/tokens.json"; fx trace-shades "$L/trace.json"; board
+check "a logo whose soft edges trace as several shades of one token gets one row per mode and token" \
+  one_row_per_token "$C/$ID_REL/board.md"
 
 use bwoff; TK="$C/$ID_REL/tokens.json"; fx palette "$TK"; fx font "$TK" "$C/$ID_REL/fonts/test" "Test Serif" woff2
 board

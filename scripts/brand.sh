@@ -81,11 +81,11 @@ case "$cmd" in
   logo)
     need_env
     [ $# -eq 1 ] || die "usage: brand.sh logo DIR"
-    exec "$ENV/venv/bin/python" -I "$LIB/logo.py" --resvg "$ENV/bin/resvg" "$1" ;;
+    exec "$ENV/venv/bin/python" -I -B "$LIB/logo.py" --resvg "$ENV/bin/resvg" "$1" ;;
   board)
     need_env
     check=""; [ "${1:-}" = "--check" ] && { check="--check"; shift; }
     [ $# -eq 1 ] || die "usage: brand.sh board [--check] DIR"
-    exec "$ENV/venv/bin/python" -I "$LIB/board.py" --resvg "$ENV/bin/resvg" $check "$1" ;;
+    exec "$ENV/venv/bin/python" -I -B "$LIB/board.py" --resvg "$ENV/bin/resvg" $check "$1" ;;
   *) die "usage: brand.sh setup | logo DIR | board [--check] DIR" ;;
 esac

@@ -21,6 +21,7 @@ LOGO = f"{IDENTITY}/logo"
 IMAGERY, IMAGERY_MD = "docs/7-branding/imagery", "docs/7-branding/imagery.md"
 PHOTO_EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif")
 COLOURS = ("bg", "surface", "border", "text", "muted", "accent", "accent-text", "on-accent", "ok", "warn", "crit")
+MESSAGES = ("ok", "warn", "crit")
 HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 BRAND = re.compile(r"^brand-[1-9][0-9]*$")
 ROLES = ("heading", "body", "ui")
@@ -61,6 +62,8 @@ def brand_json(command):
 
 
 def inputs_hash():
+    # the company's own brand.py computes the hash; importing it must leave no cache folder in the company
+    sys.dont_write_bytecode = True
     sys.path.insert(0, os.path.abspath(".ouroboric/checks"))
     import brand
     return brand.board_inputs_hash()
@@ -101,11 +104,16 @@ class Out:
                 os.remove(os.path.join(IMAGES, name))
 
 
+def brand_colours(pal):
+    """The palette without the message colours: those colour the products' system messages, not the brand."""
+    return [k for k in pal if k not in MESSAGES]
+
+
 def palette_panel(pal, mode):
     bg = pal.get("bg", "#FFFFFF" if mode == "light" else "#121212")
     ink = pal.get("text", readable_on(bg))
     cols, cw, ch = 4, 230, 130
-    keys = list(pal)
+    keys = brand_colours(pal)
     rows = max(1, math.ceil(len(keys) / cols))
     w, h = cols * cw + 20, rows * ch + 60
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}">',
@@ -125,7 +133,7 @@ def palette_panel(pal, mode):
 
 
 def palette_strip(pal):
-    keys = list(pal)
+    keys = brand_colours(pal)
     w = 60 * len(keys)
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} 40" width="{w}" height="40">']
     out += [f'<rect x="{i * 60}" y="0" width="60" height="40" fill="{pal[k]}"/>' for i, k in enumerate(keys)]
@@ -241,12 +249,16 @@ def make(resvg, today):
             for r in rows:
                 ratio = f"{math.floor(r['ratio'] * 100) / 100:.2f}:1"
                 minimum = f"{r['minimum']:g}:1" if r["minimum"] else "none"
-                md.append(f"| {r['fg']} on {r['bg']} | {ratio} | {minimum} | {r['result']} |")
+                if r["fg"] not in MESSAGES:   # the message colours are checked, not shown: they are not the brand
+                    md.append(f"| {r['fg']} on {r['bg']} | {ratio} | {minimum} | {r['result']} |")
                 if r["result"] == "fails":
                     open_items.append(f"Contrast, {mode}: {r['fg']} on {r['bg']} is {ratio}, under {minimum}.")
             md.append("")
         else:
             md += ["The palette is not set yet.", ""]
+    md += [("The message colours (ok, warn, crit) colour the products' system messages only. They are not part of "
+            "the brand, so the board leaves them out; they are in tokens.json, and the brand check checks their "
+            "contrast."), ""]
 
     md += ["## Type", ""]
     fonts = (tokens.get("type") or {}).get("fonts") or {}
@@ -301,7 +313,13 @@ def make(resvg, today):
                     md += [f"![The {art} on the {mode} background]({link})", ""]
             md += ["| Mode | Traced colour | Token | Value |", "| --- | --- | --- | --- |"]
             for mode in ("light", "dark"):
+                # soft edges trace as several shades of one colour: one row for each token (or kept colour)
+                shown = set()
                 for c in trace["modes"][mode]["colours"]:
+                    key = c["token"] or c["value"]
+                    if key in shown:
+                        continue
+                    shown.add(key)
                     md.append(f"| {mode} | {c.get('traced', 'derived')} | {c['token'] or 'kept: no token'} | {c['value']} |")
             md.append("")
             current = {v for m in ("light", "dark") for v in pals[m].values()}
