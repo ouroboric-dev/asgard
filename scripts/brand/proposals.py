@@ -1,7 +1,7 @@
 """Logo proposals for step 6a (brand tools spec §3.2): the review page for the founder's concept and the agent's
 alternatives, and the chosen design as the logo's source PNGs.
 
-    proposals.py --resvg PATH DIR CANDIDATES.json [--choose ALTERNATIVE[:FACE]]
+    proposals.py --resvg PATH DIR CANDIDATES.json [--choose ALTERNATIVE[:FACE]|saved]
 
 CANDIDATES.json: {"name": "Example Studio", "faces": ["plain", "ring"], "alternatives": [{"id": "a", "name": "...",
 "strength": "...", "risk": "...", "fails_at": 24, "lettering": false, "image": "path", "mark": "path"}, ...]}.
@@ -25,6 +25,11 @@ import sys
 import tempfile
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # brand.sh runs this file isolated (-I)
+import choicepage  # noqa: E402
+import fonts as library  # noqa: E402
 
 CHOICES = "docs/7-branding/identity/choices"
 IDENTITY = "docs/7-branding/identity"
@@ -140,10 +145,15 @@ class Face:
         self.joined = bool(spec.get("joined"))
         self.licence = (spec.get("licence") or {}).get("spdx") or "unknown"
         first = (spec.get("files") or [{}])[0].get("name")
-        import fonts as library
         self.path = os.path.join(library.downloads(), spec.get("dir", ""), first or "")
         if not first or not os.path.isfile(self.path):
             raise Refused(f"face {self.id}: its font file is not in the downloads: run brand.sh fonts again")
+        # the facts the page shows are read from the file now, not taken from the facts file
+        read = choicepage.facts_of(self.path)
+        recorded = (spec.get("files") or [{}])[0].get("sha256")
+        if recorded and read["sha256"] != recorded:
+            raise Refused(f"face {self.id}: its font file changed since its facts were read: run brand.sh fonts again")
+        self.weights, self.italic = read["weights"], read["italic"]
         self.cmap = None
 
     def covers(self, text):
@@ -247,47 +257,22 @@ def notes_for(alt, face, name):
     return notes
 
 
-def esc(text):
-    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
-
-
-PAGE = """<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Logo proposals</title>
-<style>
-:root { --bg: #fff; --surface: #f4f4f4; --text: #1a1a1a; --muted: #555; --line: #d8d8d8; --accent: #0b5fcc; --warn-bg: #fdf0d8; --warn: #6b3d08; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #121212; --surface: #1e1e1e; --text: #ededed; --muted: #b0b0b0; --line: #333; --accent: #6ea8fe; --warn-bg: #3a2a16; --warn: #f3d3a8; } }
-body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, sans-serif; }
-main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; }
-h1 { font-size: 1.5rem; margin: 0 0 4px; } h2 { font-size: 1.1rem; margin: 0 0 4px; } h3 { font-size: .95rem; margin: 16px 0 4px; }
-p.lead { color: var(--muted); margin: 0 0 24px; max-width: 70ch; }
+CSS = """
 .picker { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 24px; }
 .group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .group label { display: flex; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: var(--bg); cursor: pointer; }
-.group input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .licence { color: var(--muted); font-size: .8rem; }
 .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
-.panel { border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: var(--surface); display: grid; gap: 4px; align-content: start; }
+.panel { border: 2px solid var(--line); border-radius: 12px; padding: 16px; background: var(--surface); display: grid; gap: 4px; align-content: start; }
+.panel:has(input[name="alternative"]:checked) { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .panel p { margin: 0; } .panel .k { font-weight: 600; }
+.panel .choose { display: flex; gap: 8px; align-items: center; font-weight: 600; cursor: pointer; }
 .panel img { max-width: 100%; height: auto; display: block; border-radius: 6px; border: 1px solid var(--line); }
 .notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .notes li { background: var(--warn-bg); color: var(--warn); border-radius: 6px; padding: 4px 8px; font-size: .85rem; }
-</style>
-</head>
-<body>
-<main>
-<h1>Logo proposals for __NAME__</h1>
-<p class="lead">Each proposal is shown in the same order and parts: the logo at 16, 24, 32 and 48 pixels, then the mark at 16, 32 and 64 pixels with an enlarged 16, each in a light and a dark row. Choose one proposal and one lettering.</p>
-__PICKER__
-<div class="panels">
-__PANELS__
-</div>
-</main>
-<script type="application/json" id="data">__DATA__</script>
-<script>
+"""
+
+JS = """
 (function () {
   var d = JSON.parse(document.getElementById("data").textContent);
   var radios = document.querySelectorAll('input[name="face"]');
@@ -303,14 +288,12 @@ __PANELS__
   radios.forEach(function (r) { r.addEventListener("change", function () { show(r.value); }); });
   if (radios.length) { show(document.querySelector('input[name="face"]:checked').value); }
 })();
-</script>
-</body>
-</html>
 """
 
 
-def page(name, alts, faces, images, marks, notes):
-    first = faces[0]["id"] if faces else "none"
+def page(name, alts, faces, images, marks, notes, saved):
+    chosen = (saved or {}).get("choice") or {}
+    first = chosen.get("face") if chosen.get("face") in [f["id"] for f in faces] else (faces[0]["id"] if faces else "none")
     picker = ""
     if faces:
         groups = []
@@ -319,33 +302,36 @@ def page(name, alts, faces, images, marks, notes):
             if not members:
                 continue
             labels = "".join(
-                f'<label><input type="radio" name="face" value="{esc(f["id"])}"{" checked" if f["id"] == first else ""}>'
-                f'<span>{esc(f["family"])}</span> <span class="licence">{esc(f["licence"])}</span></label>' for f in members)
+                f'<label><input type="radio" name="face" value="{choicepage.esc(f["id"])}"{" checked" if f["id"] == first else ""}>'
+                f'<span>{choicepage.esc(f["family"])}</span> <span class="licence">{choicepage.esc(f["licence"])}</span></label>'
+                for f in members)
             hint = ("calm and clear: they hold up at any size" if group == "serious"
                     else "more character: more care at small sizes")
             groups.append(f'<h3>{title} <span class="licence">{hint}</span></h3><div class="group">{labels}</div>')
         picker = ('<section class="picker" aria-label="Lettering"><h2>Lettering</h2>'
-                  "<span class=\"licence\">Picking one sets every lettered proposal in it.</span>" + "".join(groups) +
-                  "</section>")
+                  '<span class="licence">Picking one sets every lettered proposal in it.</span>'
+                  f'<fieldset data-option-group="face">{"".join(groups)}</fieldset></section>')
     panels = []
     for a in alts:
+        e = choicepage.esc
         fails = f'<p><span class="k">Size:</span> it fails at {a["fails_at"]} px and below.</p>' if a.get("fails_at") else ""
-        lettered = "" if not a["lettering"] else ""
-        first_notes = "".join(f"<li>{esc(n)}</li>" for n in notes[a["id"]].get(first, []))
+        first_notes = "".join(f"<li>{e(n)}</li>" for n in notes[a["id"]].get(first, []))
         mark_imgs = ""
         if marks[a["id"]]["light"]:
             mark_imgs = ('<h3>The mark</h3>'
-                         f'<img alt="The mark of {esc(a["name"])} at 16, 32 and 64 pixels, light" src="{marks[a["id"]]["light"]}">'
-                         f'<img alt="The mark of {esc(a["name"])} at 16, 32 and 64 pixels, dark" src="{marks[a["id"]]["dark"]}">')
+                         f'<img alt="The mark of {e(a["name"])} at 16, 32 and 64 pixels, light" src="{marks[a["id"]]["light"]}">'
+                         f'<img alt="The mark of {e(a["name"])} at 16, 32 and 64 pixels, dark" src="{marks[a["id"]]["dark"]}">')
         sets = images[a["id"]][first]
+        ticked = " checked" if chosen.get("alternative") == a["id"] else ""
         panels.append(
-            f'<section class="panel" id="panel-{esc(a["id"])}"><h2>{esc(a["name"])}</h2>{lettered}'
-            f'<p><span class="k">Strength:</span> {esc(a["strength"])}</p><p><span class="k">Risk:</span> {esc(a["risk"])}</p>{fails}'
-            f'<ul class="notes" id="notes-{esc(a["id"])}">{first_notes}</ul><h3>The logo</h3>'
-            f'<img id="logo-{esc(a["id"])}-light" alt="{esc(a["name"])} at 16, 24, 32 and 48 pixels, light" src="{sets["light"]}">'
-            f'<img id="logo-{esc(a["id"])}-dark" alt="{esc(a["name"])} at 16, 24, 32 and 48 pixels, dark" src="{sets["dark"]}">'
+            f'<section class="panel" id="panel-{e(a["id"])}"><h2>{e(a["name"])}</h2>'
+            f'<label class="choose"><input type="radio" name="alternative" value="{e(a["id"])}"{ticked}> Choose this proposal</label>'
+            f'<p><span class="k">Strength:</span> {e(a["strength"])}</p><p><span class="k">Risk:</span> {e(a["risk"])}</p>{fails}'
+            f'<ul class="notes" id="notes-{e(a["id"])}">{first_notes}</ul><h3>The logo</h3>'
+            f'<img id="logo-{e(a["id"])}-light" alt="{e(a["name"])} at 16, 24, 32 and 48 pixels, light" src="{sets["light"]}">'
+            f'<img id="logo-{e(a["id"])}-dark" alt="{e(a["name"])} at 16, 24, 32 and 48 pixels, dark" src="{sets["dark"]}">'
             f'{mark_imgs}</section>')
-    return picker, "\n".join(panels)
+    return picker + '<div class="panels" data-preview data-option-group="alternative">' + "\n".join(panels) + "</div>"
 
 
 def load(company, path):
@@ -421,13 +407,17 @@ def run(company, candidates, resvg, choose):
                     made = compose(a, face, name, mark_im, image_im, resvg, work, p["text"], p["accent"], mode)
                     big[(a["id"], key, mode)] = made
                     images[a["id"]][key][mode] = data_uri(ladder(made, LOGO_SIZES, p["bg"]))
-        face_rows = [{"id": f.id, "family": f.family, "group": f.group, "licence": f.licence} for f in faces]
+        face_rows = [{"id": f.id, "family": f.family, "group": f.group, "licence": f.licence, "weights": f.weights,
+                      "italic": f.italic} for f in faces]
         data = {"name": name, "alternatives": [{k: a.get(k) for k in ("id", "name", "strength", "risk", "fails_at", "lettering")}
                                               for a in alts],
                 "faces": face_rows, "images": images, "marks": marks, "notes": notes}
-        picker, panels = page(name, alts, face_rows, images, marks, notes)
-        html = (PAGE.replace("__NAME__", esc(name)).replace("__PICKER__", picker).replace("__PANELS__", panels)
-                .replace("__DATA__", json.dumps(data, ensure_ascii=False).replace("</", "<\\/")))
+        saved = choicepage.saved_choice(company, "logo")
+        body = page(name, alts, face_rows, images, marks, notes, saved)
+        html = choicepage.skeleton("logo", f"Logo proposals for {name}",
+                                   "Each proposal is shown in the same order and parts: the logo at 16, 24, 32 and 48 pixels, "
+                                   "then the mark at 16, 32 and 64 pixels with an enlarged 16, each in a light and a dark row. "
+                                   "Choose one proposal and one lettering.", body, data, saved, css=CSS, js=JS)
         out = os.path.join(company, CHOICES)
         os.makedirs(out, exist_ok=True)
         with open(os.path.join(out, "logo-proposals.html"), "w", encoding="utf-8") as fh:
@@ -442,6 +432,12 @@ def run(company, candidates, resvg, choose):
 
 
 def write_choice(company, choose, alts, faces, pals, big, name):
+    existing = choicepage.saved_choice(company, "logo") or {}
+    if choose == "saved":
+        picked = existing.get("choice") or {}
+        if not picked.get("alternative"):
+            raise Refused("no choice saved yet: the founder confirms a proposal on the page first")
+        choose = picked["alternative"] + (":" + picked["face"] if picked.get("face") else "")
     alt_id, _, face_id = choose.partition(":")
     alt = next((a for a in alts if a["id"] == alt_id), None)
     if alt is None:
@@ -471,7 +467,7 @@ def write_choice(company, choose, alts, faces, pals, big, name):
                 k = 1000 / min(m.size)
                 m = m.resize((round(m.width * k), round(m.height * k)), Image.LANCZOS)
             snap(m, [p["text"], p["accent"]]).save(os.path.join(source, "mark.png"))
-    record = {"alternative": alt["id"], "name": alt["name"], "face": face.id if face else None,
+    record = {**existing, "step": "logo", "alternative": alt["id"], "name": alt["name"], "face": face.id if face else None,
               "wordmark": {"family": face.family, "licence": face.licence} if face else None}
     with open(os.path.join(company, CHOICES, "logo.json"), "w", encoding="utf-8") as fh:
         json.dump(record, fh, indent=2)

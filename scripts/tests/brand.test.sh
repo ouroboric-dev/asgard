@@ -471,13 +471,13 @@ cp "$PREP/arcs-mark.png" "$SRC/logo.png"; logo
 check "the same mark, prepared, traces faithfully" trace 't["modes"]["light"]["mismatch"] <= 0.01'
 
 # Logo proposals (design system tasks DS-T07): the review page, and the chosen design as source PNGs.
-use props; PD="$C/docs/7-branding/identity/choices"; PAGE="$PD/logo-proposals.html"
+use props; PD="$C/docs/7-branding/identity/choices"; PAGE="$PD/logo-proposals.html"; FACTSF="$PD/fonts-facts.json"
 PLIB="$T/proplib"; PDL="$T/propdl"
 LET="$(python3 -c 'print(",".join("%x" % c for c in list(range(0x41, 0x5b)) + list(range(0x61, 0x7b)) + [0x20]))')"
 fx face "$PLIB/plainface" "Plain Face" "PlainFace-Regular.ttf" "$LET" 400 0 - ofl
 fx face "$PLIB/ringface" "Ring Face" "RingFace-Regular.ttf" "$LET" 400 0 - ofl ring
 fx face "$PLIB/narrowface" "Narrow Face" "NarrowFace-Regular.ttf" "$LET" 400 0 - ofl narrow
-fx face "$PLIB/scriptface" "Script Face" "ScriptFace-Regular.ttf" "$LET" 400 0 - ofl
+fx face "$PLIB/scriptface" "Script Face" "ScriptFace-Regular.ttf" "$LET" 400 0 - ofl tall
 fx face "$PLIB/partface" "Part Face" "PartFace-Regular.ttf" "41,42,43" 400 0 - ofl
 python3 - "$T/prop-fonts.json" <<'PY'
 import json, sys
@@ -501,6 +501,8 @@ json.dump({"name": "Example Studio", "faces": ["plain", "ring", "narrow", "scrip
      "mark": "docs/7-branding/identity/choices/concept/mark.png", "lettering": True, "layout": "above", "replaces_letter": "i",
      "poor_fit": {"ring": "The agent's own note about this pairing"}}]}, open(sys.argv[1], "w"))
 PY
+# shellcheck disable=SC2329
+check_page() { "$BRAND" check-page "$C" "$1" >"$C.cp.out" 2>&1; }
 proposals() { ASGARD_FONTS_DIR="$PDL" "$BRAND" logo-proposals "$@" >"$C.prop.out" 2>&1; echo $? >"$C.prop.code"; }
 # shellcheck disable=SC2329
 ppcode() { [ "$(cat "$C.prop.code")" = "$1" ]; }
@@ -527,6 +529,9 @@ check "a letter replaced in a joined face carries a note" \
 check "the agent's own note for a pairing is shown" fx page "$PAGE" 'any("own note" in n for n in d["notes"]["swap"]["ring"])'
 check "an alternative with no lettering has no pairing notes" fx page "$PAGE" 'all(d["notes"]["drawn"][f["id"]] == [] for f in d["faces"])'
 check "a pairing with a note is not hidden: the picker still offers the face" fx page "$PAGE" 'any(f["id"] == "part" for f in d["faces"])'
+check "the page passes the page check: every option changes it, every image decodes" check_page "$PAGE"
+check "each face's facts are read from its file when the page is built" \
+  fx page "$PAGE" 'all("weights" in f and f["italic"] is False for f in d["faces"])'
 check "the page is written only in the choices folder" only_choices_changed "$C"
 check "the names check passes" names_pass "$C"
 check "the generated page is not committed: the company's ignore file holds it back" git -C "$C" check-ignore -q "$PAGE"
@@ -537,6 +542,18 @@ check "a second run writes the same page" [ "$(sha256sum "$PAGE")" = "$sum1" ]
 cp "$T/prop.json" "$T/prop-bad.json"; sed -i 's/"ring", "narrow"/"ring", "ghost"/' "$T/prop-bad.json"; proposals "$C" "$T/prop-bad.json"
 check "a face that is not in the fonts' facts is refused" ppcode 2
 check "and named, with the command that makes the facts" says "$C.prop.out" "ghost"
+python3 - "$FACTSF" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1])); d["candidates"][0]["italic"] = True; d["candidates"][0]["weights"] = [{"min": 900, "max": 900}]
+json.dump(d, open(sys.argv[1], "w"))
+PY
+proposals "$C" "$T/prop.json"
+check "facts typed by hand do not reach the page: it shows what the file says" \
+  fx page "$PAGE" 'd["faces"][0]["italic"] is False and d["faces"][0]["weights"] == [{"min": 400, "max": 400}]'
+printf 'x' >>"$PDL/plainface/PlainFace-Regular.ttf"; proposals "$C" "$T/prop.json"
+check "a font file that changed since its facts were read is refused" ppcode 2
+check "and the run to repeat is named" says "$C.prop.out" "brand.sh fonts"
+ASGARD_FONTS_BASE="file://$PLIB" ASGARD_FONTS_DIR="$PDL" "$BRAND" fonts "$C" "$T/prop-fonts.json" >/dev/null 2>&1
 sed 's#docs/7-branding/identity/choices/concept/mark.png#../../../etc/passwd#' "$T/prop.json" >"$T/prop-evil.json"; proposals "$C" "$T/prop-evil.json"
 check "an image outside the company folder is refused" ppcode 2
 python3 - "$T/prop.json" "$T/prop-noname.json" <<'PY'
@@ -548,7 +565,7 @@ check "an alternative without its strength is refused" ppcode 2
 check "logo-proposals without a candidates file is refused" [ "$("$BRAND" logo-proposals "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
 
 # The chosen design becomes the logo's source PNGs, in the palette's text and accent colours.
-use props2; PD="$C/docs/7-branding/identity/choices"; TK="$C/$ID_REL/tokens.json"; fx palette "$TK"
+use props2; PD="$C/docs/7-branding/identity/choices"; PAGE="$PD/logo-proposals.html"; TK="$C/$ID_REL/tokens.json"; fx palette "$TK"
 mkdir -p "$PD/concept"; fx draw mark "$PD/concept/mark.png"; fx draw wide "$PD/concept/wide.png"
 ASGARD_FONTS_BASE="file://$PLIB" ASGARD_FONTS_DIR="$PDL" "$BRAND" fonts "$C" "$T/prop-fonts.json" >/dev/null 2>&1
 proposals "$C" "$T/prop.json" --choose named:ring
@@ -572,5 +589,103 @@ proposals "$C" "$T/prop.json" --choose ghost:ring
 check "an alternative that does not exist is refused" ppcode 2
 proposals "$C" "$T/prop.json" --choose named:ghost
 check "and so is a face that does not" ppcode 2
+proposals "$C" "$T/prop.json" --choose saved
+check "--choose saved with nothing saved is refused" ppcode 2
+check "and says what is missing" says "$C.prop.out" "no choice saved"
+python3 - "$PD/logo.json" <<'PY'
+import json, sys
+json.dump({"step": "logo", "choice": {"alternative": "swap", "face": "ring"}, "reason": "Calm and compact", "date": "2026-10-28"}, open(sys.argv[1], "w"))
+PY
+proposals "$C" "$T/prop.json"
+check "a saved choice is embedded in the page it builds" fx page "$PAGE" '"Calm and compact" in html'
+check_page "$PAGE"
+# shellcheck disable=SC2329
+says_saved() { says "$C.cp.out" "reopens on the saved choice"; }
+check "and the page reopens on it, proved in the browser" says_saved
+proposals "$C" "$T/prop.json" --choose saved
+check "--choose saved applies the saved choice" ppcode 0
+check "and records the chosen proposal beside her reason" \
+  fx json "$PD/logo.json" 'd["alternative"] == "swap" and d["face"] == "ring" and d["reason"] == "Calm and compact" and d["choice"]["face"] == "ring"'
+
+# The choice pages (design system tasks DS-T12): the four rules of spec §5.7, and the local server that saves a choice.
+use pages; CH="$C/$ID_REL/choices"; mkdir -p "$CH"
+FONTURI="$(fx fontdata)"
+pagecheck() { "$BRAND" check-page "$C" "$1" >"$C.page.out" 2>&1; echo $? >"$C.page.code"; }
+# shellcheck disable=SC2329
+pgcode() { [ "$(cat "$C.page.code")" = "$1" ]; }
+fx optionpage "$CH/good.html" good; pagecheck "$CH/good.html"
+check "a page whose every option changes it passes the page check" pgcode 0
+check "and says what it proved" says_all "$C.page.out" "tone" "light" "dark" "390" "820" "1280"
+fx optionpage "$CH/dead.html" dead; pagecheck "$CH/dead.html"
+check "an option that changes nothing makes the check fail (rule 4)" pgcode 1
+check "and names the group and the two options" says "$C.page.out" "tone: the options a and c do not change what the page shows"
+fx optionpage "$CH/dark.html" dark-only; pagecheck "$CH/dark.html"
+check "an option that differs from another only in dark mode is a visible change: it passes" pgcode 0
+fx optionpage "$CH/face.html" face-ok "$FONTURI"; pagecheck "$CH/face.html"
+check "a page whose face loads passes the font check (rule 3)" pgcode 0
+check "and lists the face as loaded" says "$C.page.out" "Probe Face: loaded"
+fx optionpage "$CH/broken.html" face-broken; pagecheck "$CH/broken.html"
+check "a face that does not load makes the check fail" pgcode 1
+check "and names the family" says "$C.page.out" "Probe Face: did not load"
+fx optionpage "$CH/image.html" broken-image; pagecheck "$CH/image.html"
+check "an image that does not decode makes the check fail" pgcode 1
+fx optionpage "$CH/quote.html" double-quoted; pagecheck "$CH/quote.html"
+check "a font name in double quotes inside a style attribute is refused (the attribute would break)" pgcode 1
+check "and says so" says "$C.page.out" "single-quoted"
+fx optionpage "$CH/saved.html" saved; pagecheck "$CH/saved.html"
+check "a page reopens on the saved choice (rule 1)" pgcode 0
+check "and says it did" says "$C.page.out" "reopens on the saved choice"
+fx optionpage "$CH/unrestored.html" unrestored; pagecheck "$CH/unrestored.html"
+check "a page that does not restore the saved choice fails" pgcode 1
+check "and says what differs" says "$C.page.out" "tone: saved b, the page shows a"
+pagecheck "$CH/nothere.html"
+check "check-page of a file that is not there is refused, with code 2" pgcode 2
+check "check-page without a page is refused" [ "$("$BRAND" check-page "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
+mkdir -p "$C/.ouroboric"; printf '{"executable": "/nonexistent/browser"}\n' >"$C/.ouroboric/browser.json"; pagecheck "$CH/good.html"
+check "a browser set in the company's own settings is used" pgcode 2
+check "and a missing one is named" says "$C.page.out" "/nonexistent/browser"
+
+# The local server (design system tasks DS-T12): serves the pages on 127.0.0.1 and saves a choice into the company's files.
+use served; CH="$C/$ID_REL/choices"; mkdir -p "$CH"; fx optionpage "$CH/playground.html" good
+PORT="$(fx freeport)"; BASEURL="http://127.0.0.1:$PORT"
+"$BRAND" serve "$C" --port "$PORT" >"$C.serve.out" 2>&1 &
+SERVER=$!
+for _ in $(seq 1 50); do grep -q "127.0.0.1" "$C.serve.out" 2>/dev/null && break; sleep 0.2; done
+# shellcheck disable=SC2329
+status_is() { [ "$(fx http "${@:2}" | head -1)" = "$1" ]; }
+# shellcheck disable=SC2329
+body_has() { fx http GET "$1" | grep -q -- "$2"; }
+# shellcheck disable=SC2329
+stopped() { ! kill -0 "$SERVER" 2>/dev/null; }
+check "serve says where it listens, on 127.0.0.1 only" says "$C.serve.out" "http://127.0.0.1:$PORT/"
+check "the index lists the pages" body_has "$BASEURL/" playground
+check "a page is served" status_is 200 GET "$BASEURL/page/playground"
+check "with the token filled in" [ "$(fx token "$BASEURL/page/playground" | wc -c)" -gt 20 ]
+TOKEN="$(fx token "$BASEURL/page/playground")"
+BODY='{"choice": {"tone": "b"}, "reason": "I like the blue"}'
+check "a choice with the token is saved" status_is 200 POST "$BASEURL/save/playground" "$BODY" application/json "$TOKEN"
+SAVEDF="$CH/playground.json"
+check "in the design system's choices folder" test -f "$SAVEDF"
+check "with the choice, the reason and the date" \
+  fx json "$SAVEDF" 'd["choice"] == {"tone": "b"} and d["reason"] == "I like the blue" and d["step"] == "playground" and len(d["date"]) == 10'
+check "and the saved choice is read back" status_is 200 GET "$BASEURL/choices/playground.json"
+check "the served page reopens on it" body_has "$BASEURL/page/playground" "I like the blue"
+sumsaved="$(sha256sum "$SAVEDF")"
+check "no token is refused" status_is 403 POST "$BASEURL/save/playground" "$BODY" application/json ""
+check "a wrong token is refused" status_is 403 POST "$BASEURL/save/playground" "$BODY" application/json "nope"
+check "a body that is not JSON by its type is refused" status_is 415 POST "$BASEURL/save/playground" "$BODY" text/plain "$TOKEN"
+check "a step that is not one of the design's steps is refused" status_is 404 POST "$BASEURL/save/nothing" "$BODY" application/json "$TOKEN"
+check "a step that leaves the folder is refused" status_is 404 POST "$BASEURL/save/..%2Fsecret" "$BODY" application/json "$TOKEN"
+check "a choice that is not an object is refused" status_is 400 POST "$BASEURL/save/playground" '{"choice": "b", "reason": ""}' application/json "$TOKEN"
+check "a reason that is not text is refused" status_is 400 POST "$BASEURL/save/playground" '{"choice": {"tone": "a"}, "reason": 5}' application/json "$TOKEN"
+check "a body over 64 KB is refused" status_is 413 POST "$BASEURL/save/playground" "@big" application/json "$TOKEN"
+check "a request for another host name is refused (DNS rebinding)" status_is 421 GET "$BASEURL/page/playground" "" "" "" "evil.example"
+check "a page that is not there is a 404" status_is 404 GET "$BASEURL/page/nothing"
+check "a file outside the pages is not served" status_is 404 GET "$BASEURL/page/..%2F..%2Ftokens"
+check "refused requests changed nothing" [ "$(sha256sum "$SAVEDF")" = "$sumsaved" ]
+kill "$SERVER" 2>/dev/null; wait "$SERVER" 2>/dev/null
+check "serve stops when it is told to" stopped
+check "serve wrote nothing but the choice" only_choices_changed "$C"
+check "serve without a company folder is refused" [ "$("$BRAND" serve >/dev/null 2>&1; echo $?)" -eq 2 ]
 
 exit "$fail"
