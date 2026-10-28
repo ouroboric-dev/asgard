@@ -98,7 +98,7 @@ body { margin: 0; background: var(--color-bg); color: var(--color-text); font-fa
 main { max-width: 1100px; margin: 0 auto; }
 section { padding: var(--space-5) var(--space-4); display: grid; gap: var(--space-3); border-top: 1px solid var(--color-border); }
 h1, h2, h3 { margin: 0; }
-h1 { font-family: var(--font-display); font-size: var(--text-display); line-height: var(--leading-display); font-weight: 500; }
+h1 { font-family: var(--font-display); font-size: var(--text-display); line-height: var(--leading-display); font-weight: 400; }
 h2 { font-family: var(--font-heading); font-size: var(--text-h2); line-height: var(--leading-heading); }
 p { margin: 0; max-width: 62ch; }
 .wordmark { font-family: var(--font-wordmark); font-size: var(--text-h2); }
