@@ -29,15 +29,15 @@ import fonts as library  # noqa: E402
 ROLES = ("wordmark", "display", "heading", "body", "ui")
 ROLE_INFO = {
     "wordmark": ("Wordmark", "The company's name in the logo.", "The logo, the favicon set, the signature.",
-                 "Everywhere, but always the same few words.", [500], False),
-    "display": ("Display", "The few big words: a hero line, a post's title.", "The website's top, social post images, covers.",
-                "Rarely, and large.", [500], False),
-    "heading": ("Heading", "Section titles and card titles.", "Website sections, price cards, documents.",
+                 "Everywhere, but always the same few words.", [400], False),
+    "display": ("Display", "The few big words: a hero line, a title.", "The top of a page, large headlines, images shared on social media.",
+                "Rarely, and large.", [400], False),
+    "heading": ("Heading", "Section titles and card titles.", "Website sections, cards, documents.",
                 "Often, at a medium size.", [600], False),
     "body": ("Body", "Everything people read: the about text, prices, terms.", "Website text, notes, contracts.",
              "All the time, and small.", [400, 700], True),
     "ui": ("Interface", "Buttons, labels, fields and menus.", "Navigation, forms, controls.",
-           "All the time, and small.", [400, 600], False),
+           "All the time, and small.", [400, 500, 600], False),
 }
 TITLES = {"wordmark": "Choose the wordmark", "display": "Choose the display face", "heading": "Choose the heading face",
           "body": "Choose the body face", "ui": "Choose the interface face"}
@@ -47,7 +47,7 @@ NEUTRAL = {"light": {"bg": "#FFFFFF", "surface": "#F5F5F5", "text": "#1A1A1A", "
                      "on-accent": "#FFFFFF"},
            "dark": {"bg": "#121212", "surface": "#1E1E1E", "text": "#EDEDED", "muted": "#B0B0B0", "accent": "#6EA8FE",
                     "on-accent": "#121212"}}
-UI_WORDS = "Book a date Work About Contact About us Bold for emphasis, italic for a title."
+UI_WORDS = "Get in touch Work About Contact About us Bold for emphasis, italic for a title."
 STEPS = {"taste": "type-taste", "depth": "type-depth", "roles": "type"}
 CSS = """
 .stage { display: grid; gap: 16px; }
@@ -357,7 +357,7 @@ def build(company, candidates, wanted):
                               f'--p-on-accent: {colours[mode]["on-accent"]}"><p class="wm">{e(sample["name"])}</p>'
                               f'<p class="disp">{e(sample["tagline"])}</p><p class="head">About us</p>'
                               f'<p class="body">{e(sample["about"])} <strong>Bold for emphasis,</strong> <em>italic for a title.</em></p>'
-                              f'<div class="ui"><span class="btn">Book a date</span><span>Work</span><span>About</span><span>Contact</span></div>'
+                              f'<div class="ui"><span class="btn">Get in touch</span><span>Work</span><span>About</span><span>Contact</span></div>'
                               f'<p class="small">{mode.capitalize()}</p></div>')
         live = f'<div class="live">{panel("light")}{panel("dark")}</div>'
     else:

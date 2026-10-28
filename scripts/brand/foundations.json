@@ -39,11 +39,11 @@
                {"id": "48", "name": "48 px", "note": "Large: easiest to tap.", "v": 48}]},
     {"id": "breakpoints", "name": "Breakpoints", "why": "Where the layout changes from phone to tablet to wide screen.",
      "cands": [{"id": "standard", "name": "Standard", "note": "640, 960, 1280 px.", "v": [640, 960, 1280], "cols": [1, 2, 3, 4]},
-               {"id": "photo", "name": "Image grid", "note": "480, 768, 1120, 1440 px: more grid steps.", "v": [480, 768, 1120, 1440], "cols": [1, 2, 3, 4, 5]}]}
+               {"id": "fine", "name": "Finer steps", "note": "480, 768, 1120, 1440 px: more steps, more columns.", "v": [480, 768, 1120, 1440], "cols": [1, 2, 3, 4, 5]}]}
   ],
   "looks": [
     {"id": "airy", "name": "Light and airy", "note": "Generous size and space, round and gentle.",
-     "pick": {"base": "18", "ratio": "1.25", "leading": "1.7", "space": "roomy", "radius": "round", "elevation": "flat", "motion": "gentle", "focus": "text", "target": "48", "breakpoints": "photo"}},
+     "pick": {"base": "18", "ratio": "1.25", "leading": "1.7", "space": "roomy", "radius": "round", "elevation": "flat", "motion": "gentle", "focus": "text", "target": "48", "breakpoints": "fine"}},
     {"id": "warm", "name": "Warm and soft", "note": "Comfortable everywhere, soft corners and a faint lift.",
      "pick": {"base": "17", "ratio": "1.25", "leading": "1.6", "space": "comfortable", "radius": "soft", "elevation": "soft", "motion": "gentle", "focus": "accent", "target": "44", "breakpoints": "standard"}},
     {"id": "playful", "name": "Playful", "note": "Pills, bigger headlines and a bounce.",

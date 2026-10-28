@@ -817,6 +817,10 @@ ROLES="$CH/type.html"
 check "with the depth saved, type-page builds the roles page" tpcode 0
 check "which says so" says "$C.tp.out" "roles"
 check "the roles page passes the page check" check_page "$ROLES"
+check "what a role needs from its face is what the recipes use, not any one company's choice: regular for the wordmark and display" \
+  fx page "$ROLES" 'd["needs"]["wordmark"]["weights"] == [400] and d["needs"]["display"]["weights"] == [400]'
+check "semibold for headings, regular and bold with an italic for the body, regular, medium and semibold for the interface" \
+  fx page "$ROLES" 'd["needs"]["heading"]["weights"] == [600] and d["needs"]["body"] == {"weights": [400, 700], "italic": True} and d["needs"]["ui"]["weights"] == [400, 500, 600]'
 check "every role has its own card, with its job, where it appears and how often it is seen" \
   fx page "$ROLES" 'all(x in html for x in ("name in the logo", "The few big words", "Section titles", "Everything people read", "Buttons, labels"))'
 check "a role is offered her favourites that suit it: the script face she did not like is not offered" \
@@ -888,7 +892,7 @@ check "motion is played, and the page says what it does in numbers" \
   fx browse "$FP" '(() => { document.querySelector("input[name=f-motion][value=lively]").click(); return document.getElementById("motion-words").textContent.includes("320 ms") && document.querySelector("#motion-ball").getAnimations().length > 0; })()'
 check "where the device asks for reduced motion, it is still" fx page "$FP" '"prefers-reduced-motion: reduce" in html'
 check "the breakpoints are a ruler with the usual devices marked and a width slider" \
-  fx browse "$FP" '(() => { document.querySelector("input[name=f-breakpoints][value=photo]").click(); return document.getElementById("ruler").textContent.includes("1440") && document.getElementById("width-slider").type === "range"; })()'
+  fx browse "$FP" '(() => { document.querySelector("input[name=f-breakpoints][value=fine]").click(); return document.getElementById("ruler").textContent.includes("1440") && document.getElementById("width-slider").type === "range"; })()'
 check "a look sets every foundation at once" \
   fx browse "$FP" '(() => { document.querySelector("input[name=look][value=playful]").click(); return document.querySelector("input[name=f-radius][value=round]").checked && document.querySelector("input[name=f-motion][value=lively]").checked; })()'
 check "the final choice has the keys of the token contract" \
@@ -1078,6 +1082,11 @@ check "they become accepted exceptions with who and when" \
 check "and the company's checks pass, the exceptions reported as accepted" brand_check_passes "$C"
 applyp "$C"
 check "playground-apply needs to know who accepts the exceptions" apcode 2
+
+# The tools are generic: the words of one trade, and the habits of one company's rehearsal, do not belong in them.
+# shellcheck disable=SC2329
+tools_use_no_trade_words() { ! grep -rniE "book a date|photograph|price card|social post|portrait|wedding|gallery cover" "$HERE/../brand" --include=*.py --include=*.json --include=*.sh | grep -v "faces-source.json\|faces.json" | grep -q .; }
+check "the tools' wording names no trade: no booking, no photographs, no price cards" tools_use_no_trade_words
 
 echo "end of suite: every check ran"
 exit "$fail"
