@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # The brand tools of step 6 of the company kickstart (brand tools spec §3.2).
-#   brand.sh setup                 install the pinned tools into the cache; the only command that uses the network
+#   brand.sh setup                 install the pinned tools into the cache; uses the network
+#   brand.sh fonts DIR CANDIDATES  fetch candidate typefaces and their licences, write their facts (uses the network
+#                                  for files not yet downloaded; the facts go to DIR/.ouroboric/choices/)
 #   brand.sh logo DIR              trace, recolour, derive, export and check the logo of the company in DIR
 #   brand.sh board [--check] DIR   write DIR/docs/7-branding/identity/board.md; --check fails when it is stale
 # The environment lives in ${XDG_CACHE_HOME:-$HOME/.cache}/asgard/brand/<key>, where <key> is a hash of
@@ -87,5 +89,9 @@ case "$cmd" in
     check=""; [ "${1:-}" = "--check" ] && { check="--check"; shift; }
     [ $# -eq 1 ] || die "usage: brand.sh board [--check] DIR"
     exec "$ENV/venv/bin/python" -I -B "$LIB/board.py" --resvg "$ENV/bin/resvg" $check "$1" ;;
-  *) die "usage: brand.sh setup | logo DIR | board [--check] DIR" ;;
+  fonts)
+    need_env
+    [ $# -eq 2 ] || die "usage: brand.sh fonts DIR CANDIDATES.json"
+    exec "$ENV/venv/bin/python" -I -B "$LIB/fonts.py" "$@" ;;
+  *) die "usage: brand.sh setup | fonts DIR CANDIDATES.json | logo DIR | board [--check] DIR" ;;
 esac
