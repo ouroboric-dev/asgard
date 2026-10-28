@@ -9,6 +9,7 @@
     python3 .ouroboric/checks/brand.py accepted            the accepted exceptions are complete
     python3 .ouroboric/checks/brand.py tokens [--write]    tokens.css and fonts.css from tokens.json; fail when stale
     python3 .ouroboric/checks/brand.py board-fresh         the brand board matches its inputs
+    python3 .ouroboric/checks/brand.py reference-fresh     the reference (identity/reference/) matches its inputs
     python3 .ouroboric/checks/brand.py check               every brand check; run.sh runs this
 
 The contrast check needs only the standard library; the font checks read font files with fontTools.
@@ -860,6 +861,41 @@ def board_inputs_hash():
     return "sha256:" + hashlib.sha256("\n".join(lines).encode()).hexdigest()
 
 
+REFERENCE = f"{IDENTITY}/reference"
+REFERENCE_INPUTS = re.compile(r"/\* inputs: (sha256:[0-9a-f]{64}) \*/")
+
+
+def reference_inputs_hash():
+    """One SHA-256 over the reference's inputs: tokens.json, the generated CSS, the font files and the logo's SVGs. The
+    reference records it; the freshness check compares it."""
+    paths = [TOKENS, CSS, FONTS_CSS]
+    for folder in (f"{IDENTITY}/fonts", f"{IDENTITY}/logo"):
+        for base, _, names in os.walk(folder):
+            paths += [os.path.join(base, n) for n in names if n.lower().endswith((".svg", ".ttf", ".otf", ".woff", ".woff2"))]
+    lines = []
+    for path in sorted(set(paths)):
+        if os.path.isfile(path):
+            with open(path, "rb") as fh:
+                lines.append(f"{path}\t{hashlib.sha256(fh.read()).hexdigest()}")
+    return "sha256:" + hashlib.sha256("\n".join(lines).encode()).hexdigest()
+
+
+def reference_fresh():
+    try:
+        with open(f"{REFERENCE}/components.css", encoding="utf-8") as fh:
+            m = REFERENCE_INPUTS.search(fh.read())
+    except OSError:
+        m = None
+    if not m:
+        print("The reference is not made yet: nothing to compare.")
+        return 0
+    if m.group(1) != reference_inputs_hash():
+        print(f"{REFERENCE}: out of date with its inputs; make the reference again")
+        return 1
+    print("The reference matches its inputs.")
+    return 0
+
+
 def board_fresh():
     try:
         with open(BOARD, encoding="utf-8") as fh:
@@ -898,17 +934,19 @@ def main(argv):
             return accepted()
         if command == "tokens":
             return generated(write="--write" in args)
+        if command == "reference-fresh":
+            return reference_fresh()
         if command == "board-fresh":
             return board_fresh()
         if command == "check":
-            code = max(contrast(), fonts(), foundations(), type_checks(), components(), generated(), board_fresh(), accepted())
+            code = max(contrast(), fonts(), foundations(), type_checks(), components(), generated(), board_fresh(), reference_fresh(), accepted())
             unused_exceptions()
             return code
     except CannotRun as e:
         print(e)
         return 2
     print("usage: brand.py contrast [--json] | fonts [--json] | foundations | type | components | accepted | tokens [--write] | "
-          "board-fresh | check", file=sys.stderr)
+          "board-fresh | reference-fresh | check", file=sys.stderr)
     return 2
 
 
