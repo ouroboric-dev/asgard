@@ -143,7 +143,7 @@ def font(tokens, folder, family, flavor):
     save(tokens, t)
 
 
-def face(folder, family, name, chars, weight, italic, axis, licence):
+def face(folder, family, name, chars, weight, italic, axis, licence, shape="-"):
     """A font file and its licence file in `folder`, as the library publishes a family: `axis` is "wght" for a
     variable font with a weight axis from 300 to 700 (and "wght,ital" with an italic axis too), else "-"."""
     import os
@@ -163,10 +163,28 @@ def face(folder, family, name, chars, weight, italic, axis, licence):
     pen.lineTo((550, 0))
     pen.closePath()
     glyph = pen.glyph()
-    fb.setupGlyf({g: glyph for g in order})
-    fb.setupHorizontalMetrics({g: (600, 50) for g in order})
+    glyphs = {g: glyph for g in order}
+    if shape in ("ring", "narrow") and "g006F" in glyphs:  # the letter o with a counter: wide, or a narrow slot
+        ring = TTGlyphPen(None)
+        ring.moveTo((50, 0))
+        ring.lineTo((50, 700))
+        ring.lineTo((650, 700))
+        ring.lineTo((650, 0))
+        ring.closePath()
+        inner = (150, 100, 550, 600) if shape == "ring" else (320, 100, 380, 600)
+        ring.moveTo((inner[0], inner[1]))
+        ring.lineTo((inner[2], inner[1]))
+        ring.lineTo((inner[2], inner[3]))
+        ring.lineTo((inner[0], inner[3]))
+        ring.closePath()
+        glyphs["g006F"] = ring.glyph()
+    fb.setupGlyf(glyphs)
+    fb.setupHorizontalMetrics({g: (700, 50) for g in order})
     fb.setupHorizontalHeader(ascent=800, descent=-200)
-    fb.setupNameTable({"familyName": family, "styleName": "Italic" if italic == "1" else "Regular"})
+    style = "Italic" if italic == "1" else "Regular"
+    ps = family.replace(" ", "") + "-" + style
+    fb.setupNameTable({"familyName": family, "styleName": style, "uniqueFontIdentifier": f"1.000;TEST;{ps}",
+                       "fullName": f"{family} {style}", "psName": ps, "version": "Version 1.000"})
     fb.setupOS2(usWeightClass=int(weight), fsType=0, fsSelection=1 if italic == "1" else 0x40)
     fb.setupPost()
     if italic == "1":
@@ -251,14 +269,23 @@ def main(args):
                                            "colour_delta": 0.0, "colours": light},
                                  "dark": {"from": "derived", "colours": dark}},
                        "proposed_brand_tokens": [], "gaps": [], "faithful": True})
-    elif cmd == "face":  # face FOLDER FAMILY FILE CHARS(hex,hex|-) WEIGHT ITALIC(0|1) AXIS LICENCE
-        face(*args[1:9])
+    elif cmd == "face":  # face FOLDER FAMILY FILE CHARS(hex,hex|-) WEIGHT ITALIC(0|1) AXIS LICENCE [SHAPE]
+        face(*args[1:10])
     elif cmd == "json-get":  # json-get FILE PYTHON-EXPRESSION: print the value
         print(eval(args[2], {"d": load(args[1])}))
     elif cmd == "round":  # round PATH KIND
         round_file(args[1], args[2])
     elif cmd == "json":  # json FILE PYTHON-EXPRESSION: exit 0 when the expression is true of d
         return 0 if eval(args[2], {"d": load(args[1])}) else 1
+    elif cmd == "page":  # page HTML EXPRESSION: exit 0 when the expression is true of the page's data (as d)
+        import re
+        text = open(args[1], encoding="utf-8").read()
+        data = json.loads(re.search(r'<script type="application/json" id="data">(.*?)</script>', text, re.S).group(1))
+        return 0 if eval(args[2], {"d": data, "html": text}) else 1
+    elif cmd == "has-colour":  # has-colour PNG HEX: some opaque pixel has exactly this colour
+        want = tuple(int(args[2][i:i + 2], 16) for i in (1, 3, 5))
+        im = Image.open(args[1]).convert("RGBA")
+        return 0 if any(c[:3] == want and c[3] == 255 for _, c in im.getcolors(1 << 24)) else 1
     elif cmd == "arcs":  # arcs PATH [flat]
         arcs(args[1], len(args) > 2 and args[2] == "flat")
     elif cmd == "colours":  # colours PNG MAX: opaque pixels have at most MAX colours, and the alpha is 0 or 255
