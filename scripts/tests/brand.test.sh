@@ -377,5 +377,50 @@ check "a file name that leaves the folder is refused" fcode 2
 ASGARD_FONTS_BASE="http://example.org/ofl" ASGARD_FONTS_DIR="$DL2" "$BRAND" fonts "$C" "$T/candidates.json" >"$C.fonts.out" 2>&1; echo $? >"$C.fonts.code"
 check "a library address that is not https or a local folder is refused" fcode 2
 check "fonts without a candidates file is refused" [ "$("$BRAND" fonts "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
+# Palette rounds (design system tasks DS-T06): every preset is checked with the company's contrast rules before it is shown.
+use rounds; RF="$C/.ouroboric/choices/palette-round-1.json"; ROUND="$T/round.json"
+paletteround() { "$BRAND" palette "$C" "$ROUND" >"$C.round.out" 2>&1; echo $? >"$C.round.code"; }
+# shellcheck disable=SC2329
+rcode() { [ "$(cat "$C.round.code")" = "$1" ]; }
+# shellcheck disable=SC2329
+blames_only_pale() { ! grep -q "calm\|bold" "$C.round.out"; }
+fx round "$ROUND" light-fail; paletteround
+check "a round with one failing preset is refused, with code 2" rcode 2
+check "the failing preset is named" says "$C.round.out" "pale"
+check "with the mode, the pair, the ratio and the minimum" says "$C.round.out" "light: muted on bg is 2.84:1, under the minimum 4.5:1"
+check "the passing presets are not blamed" blames_only_pale
+check "nothing is written for a refused round" test ! -f "$RF"
+fx round "$ROUND" dark-fail; paletteround
+check "a preset that fails only in dark mode is refused too" rcode 2
+check "and says dark" says "$C.round.out" "dark: muted on bg"
+fx round "$ROUND" ok; paletteround
+check "a round whose presets all pass is accepted" rcode 0
+check "and writes the round where the pages read it" test -f "$RF"
+check "each preset carries its contrast rows" fx json "$RF" 'len(d["presets"]) == 3 and all(len(p["contrast"]) > 10 for p in d["presets"])'
+check "and its result in words" fx json "$RF" 'all(p["result"] == "passes" for p in d["presets"])'
+check "the round number and the presets' names are kept" fx json "$RF" 'd["round"] == 1 and d["presets"][1]["name"] == "Bold plum"'
+check "the message colours are checked with the rest" fx json "$RF" 'any(r["fg"] == "crit" for r in d["presets"][0]["contrast"])'
+check "the run says each preset passes" says "$C.round.out" "calm: passes"
+check "the round writes nothing else in the company" only_choices_changed "$C"
+check "the names check passes after the round" names_pass "$C"
+sum1="$(sha256sum "$RF")"; paletteround
+check "a second run writes the same file" [ "$(sha256sum "$RF")" = "$sum1" ]
+fx round "$ROUND" brand-ok; paletteround
+check "a brand token with a light and a dark value is accepted" rcode 0
+for kind in five missing-key bad-hex dup brand-half round4; do
+  fx round "$ROUND" "$kind"; paletteround
+  check "a round with a bad shape ($kind) is refused with code 2" rcode 2
+done
+fx round "$ROUND" missing-key; paletteround
+check "a missing colour is named with its preset and mode" says "$C.round.out" "calm: light: border is not set"
+fx round "$ROUND" bad-hex; paletteround
+check "a value that is not #RRGGBB is named" says "$C.round.out" "bold: dark: text is 'white', not #RRGGBB"
+fx round "$ROUND" brand-half; paletteround
+check "a brand token without its other mode is named" says "$C.round.out" "calm: brand-1 has no dark value"
+fx round "$ROUND" five; paletteround
+check "more than four presets are refused" says "$C.round.out" "four presets"
+fx round "$ROUND" round4; paletteround
+check "a fourth round is refused: the agent asks what is missing" says "$C.round.out" "three rounds"
+check "palette without a round file is refused" [ "$("$BRAND" palette "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
 
 exit "$fail"

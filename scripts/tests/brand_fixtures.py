@@ -11,6 +11,7 @@
     brand_fixtures.py photo PATH SIZE     a sample photo, SIZE pixels on its long side
     brand_fixtures.py record IMAGERY FILE PERSON CONSENT   add a row to imagery.md's sample images table
     brand_fixtures.py ink PATH            exit 0 when the image holds more than one colour (something is drawn)
+    brand_fixtures.py round PATH KIND     write a palette round of three presets (KIND: ok, light-fail, dark-fail, ...)
     brand_fixtures.py trace-shades TRACE  write a trace.json with three shades of one token (a soft-edged logo)
 """
 import json
@@ -177,6 +178,34 @@ def face(folder, family, name, chars, weight, italic, axis, licence):
             "unknown": "Commercial font licence. One desktop seat.\n"}[licence]
     with open(os.path.join(folder, "OFL.txt"), "w", encoding="utf-8") as fh:
         fh.write(text)
+def round_file(path, kind):
+    """A palette round of three presets: `kind` says what is wrong with it (ok: nothing)."""
+    import copy
+    good = {m: dict(v) for m, v in GOOD.items()}
+    calm, bold, pale = (copy.deepcopy(good) for _ in range(3))
+    bold["light"].update({"accent": "#8A1C7C", "accent-text": "#8A1C7C"})
+    bold["dark"].update({"accent": "#F0A0E6", "accent-text": "#F0A0E6"})
+    pale["light"]["muted"] = "#999999" if kind == "light-fail" else good["light"]["muted"]
+    pale["dark"]["muted"] = "#555555" if kind == "dark-fail" else good["dark"]["muted"]
+    presets = [{"id": "calm", "name": "Calm blue", **calm}, {"id": "bold", "name": "Bold plum", **bold},
+               {"id": "pale", "name": "Pale grey", **pale}]
+    rnd = 1
+    if kind == "five":
+        presets += [{**copy.deepcopy(calm), "id": f"x{i}", "name": f"Extra {i}"} for i in range(2)]
+    elif kind == "missing-key":
+        del presets[0]["light"]["border"]
+    elif kind == "bad-hex":
+        presets[1]["dark"]["text"] = "white"
+    elif kind == "dup":
+        presets[1]["id"] = "calm"
+    elif kind == "brand-half":
+        presets[0]["light"]["brand-1"] = "#C2185B"
+    elif kind == "round4":
+        rnd = 4
+    elif kind == "brand-ok":
+        presets[0]["light"]["brand-1"] = "#C2185B"
+        presets[0]["dark"]["brand-1"] = "#F06292"
+    save(path, {"round": rnd, "presets": presets})
 
 
 def main(args):
@@ -204,6 +233,8 @@ def main(args):
         face(*args[1:9])
     elif cmd == "json-get":  # json-get FILE PYTHON-EXPRESSION: print the value
         print(eval(args[2], {"d": load(args[1])}))
+    elif cmd == "round":  # round PATH KIND
+        round_file(args[1], args[2])
     elif cmd == "json":  # json FILE PYTHON-EXPRESSION: exit 0 when the expression is true of d
         return 0 if eval(args[2], {"d": load(args[1])}) else 1
     elif cmd == "accepted":  # accepted TOKENS CHECK VALUE REASON
