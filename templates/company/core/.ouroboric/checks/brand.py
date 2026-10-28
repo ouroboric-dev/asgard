@@ -141,6 +141,22 @@ def unused_exceptions():
             print(f"{TOKENS}: the accepted exception for {e.get('check')} ({e.get('value')}) is no longer needed")
 
 
+def palette_rows(palettes):
+    """The contrast rows of {mode: {token: #RRGGBB}} as data: the same pairs and minimums as the contrast check."""
+    rows = []
+    for mode, palette in palettes.items():
+        for fgs, bgs, kind, minimum in PAIRS:
+            for fg in fgs:
+                for bg in bgs:
+                    if fg not in palette or bg not in palette:
+                        continue
+                    r = ratio(palette[fg], palette[bg])
+                    result = "reported" if minimum is None else ("passes" if r >= minimum else "fails")
+                    rows.append({"mode": mode, "fg": fg, "bg": bg, "kind": kind, "ratio": round(r, 4),
+                                 "minimum": minimum, "result": result})
+    return rows
+
+
 def contrast(as_json=False):
     tokens = load_tokens()
     findings, report, rows = [], [], []
