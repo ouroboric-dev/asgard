@@ -1,0 +1,3 @@
+# Compiled Python the tools and their tests leave beside the scripts.
+__pycache__/
+*.pyc
