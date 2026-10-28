@@ -15,7 +15,7 @@ import json
 import os
 
 CHOICES = "docs/7-branding/identity/choices"
-STEPS = ("logo", "palette", "fonts", "type", "foundations", "components", "playground")
+STEPS = ("logo", "palette", "fonts", "type-taste", "type-depth", "type", "foundations", "components", "playground")
 TOKEN_PLACEHOLDER = "__CHOICE_TOKEN__"
 
 CSS = """

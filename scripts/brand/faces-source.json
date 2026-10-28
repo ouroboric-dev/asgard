@@ -1,0 +1,689 @@
+{
+  "comment": "The curated typefaces, by direction. pin_faces.py turns this list into faces.json: it fetches each face's files at one commit of the library and records their hashes. Every direction has two faces to start with (width) and a few held back (depth): the typography page offers the held-back faces only in the directions the founder likes.",
+  "directions": [
+    {
+      "id": "geometric-sans",
+      "name": "Geometric sans",
+      "text": "Built from circles and straight lines: clean, modern, a little cool.",
+      "voices": [
+        "modern",
+        "clean",
+        "confident"
+      ],
+      "suits": [
+        "display",
+        "heading",
+        "ui",
+        "body",
+        "wordmark"
+      ],
+      "start": [
+        [
+          "jost",
+          "Jost",
+          "A Futura-like geometric sans."
+        ],
+        [
+          "outfit",
+          "Outfit",
+          "A geometric sans. It has no italic."
+        ]
+      ],
+      "deeper": [
+        [
+          "montserrat",
+          "Montserrat",
+          "Wide and urban."
+        ],
+        [
+          "urbanist",
+          "Urbanist",
+          "Tight, modern and light."
+        ],
+        [
+          "lexend",
+          "Lexend",
+          "Built for easy reading."
+        ],
+        [
+          "plusjakartasans",
+          "Plus Jakarta Sans",
+          "Friendly and contemporary."
+        ]
+      ]
+    },
+    {
+      "id": "humanist-sans",
+      "name": "Humanist sans",
+      "text": "Shaped like handwriting: warm, open and easy to read for a long time.",
+      "voices": [
+        "warm",
+        "calm",
+        "approachable"
+      ],
+      "suits": [
+        "body",
+        "ui",
+        "heading"
+      ],
+      "start": [
+        [
+          "sourcesans3",
+          "Source Sans 3",
+          "A neutral humanist sans for long reading."
+        ],
+        [
+          "nunitosans",
+          "Nunito Sans",
+          "Warm and open, with a rounded feel."
+        ]
+      ],
+      "deeper": [
+        [
+          "opensans",
+          "Open Sans",
+          "Friendly and very legible."
+        ],
+        [
+          "mulish",
+          "Mulish",
+          "Minimalist and clear."
+        ],
+        [
+          "cabin",
+          "Cabin",
+          "Humanist with a touch of geometry."
+        ],
+        [
+          "figtree",
+          "Figtree",
+          "A friendly, legible sans."
+        ]
+      ]
+    },
+    {
+      "id": "rounded-sans",
+      "name": "Rounded sans",
+      "text": "Soft ends and round shapes: friendly and playful.",
+      "voices": [
+        "friendly",
+        "playful",
+        "warm"
+      ],
+      "suits": [
+        "display",
+        "heading",
+        "ui",
+        "wordmark"
+      ],
+      "start": [
+        [
+          "quicksand",
+          "Quicksand",
+          "Rounded and friendly. It has no italic."
+        ],
+        [
+          "nunito",
+          "Nunito",
+          "Rounded, easy to read at small sizes."
+        ]
+      ],
+      "deeper": [
+        [
+          "comfortaa",
+          "Comfortaa",
+          "Very round and light."
+        ],
+        [
+          "fredoka",
+          "Fredoka",
+          "Bubbly and bold."
+        ],
+        [
+          "baloo2",
+          "Baloo 2",
+          "Chunky and cheerful."
+        ]
+      ]
+    },
+    {
+      "id": "neutral-sans",
+      "name": "Neutral sans",
+      "text": "Plain and Swiss in spirit: it stays out of the way.",
+      "voices": [
+        "clean",
+        "calm",
+        "technical",
+        "neutral"
+      ],
+      "suits": [
+        "body",
+        "ui",
+        "heading"
+      ],
+      "start": [
+        [
+          "inter",
+          "Inter",
+          "Made for screens: neutral and precise."
+        ],
+        [
+          "dmsans",
+          "DM Sans",
+          "A clean geometric-leaning sans."
+        ]
+      ],
+      "deeper": [
+        [
+          "manrope",
+          "Manrope",
+          "Modern and balanced. It has no italic."
+        ],
+        [
+          "worksans",
+          "Work Sans",
+          "Plain and sturdy."
+        ],
+        [
+          "publicsans",
+          "Public Sans",
+          "Strong and neutral."
+        ],
+        [
+          "hankengrotesk",
+          "Hanken Grotesk",
+          "Crisp and flexible."
+        ]
+      ]
+    },
+    {
+      "id": "quirky-sans",
+      "name": "Characterful sans",
+      "text": "A sans with a quirk or two: techy, young, memorable.",
+      "voices": [
+        "characterful",
+        "modern",
+        "technical"
+      ],
+      "suits": [
+        "display",
+        "heading",
+        "wordmark",
+        "ui"
+      ],
+      "start": [
+        [
+          "spacegrotesk",
+          "Space Grotesk",
+          "Quirky letterforms from a mono ancestor."
+        ],
+        [
+          "sora",
+          "Sora",
+          "Wide and futuristic."
+        ]
+      ],
+      "deeper": [
+        [
+          "syne",
+          "Syne",
+          "Wide, artistic and bold."
+        ],
+        [
+          "bricolagegrotesque",
+          "Bricolage Grotesque",
+          "Warm and a little odd."
+        ]
+      ]
+    },
+    {
+      "id": "elegant-sans",
+      "name": "Elegant light sans",
+      "text": "Fine strokes and open shapes: light, refined, a little vintage.",
+      "voices": [
+        "elegant",
+        "refined",
+        "light"
+      ],
+      "suits": [
+        "display",
+        "heading",
+        "wordmark"
+      ],
+      "start": [
+        [
+          "josefinsans",
+          "Josefin Sans",
+          "A geometric sans with a vintage feel."
+        ],
+        [
+          "raleway",
+          "Raleway",
+          "Elegant and thin at large sizes."
+        ]
+      ],
+      "deeper": [
+        [
+          "tenorsans",
+          "Tenor Sans",
+          "Classical and calm."
+        ]
+      ]
+    },
+    {
+      "id": "old-style-serif",
+      "name": "Old-style serif",
+      "text": "Descended from printed books: warm, calm and classic.",
+      "voices": [
+        "warm",
+        "classic",
+        "calm",
+        "editorial"
+      ],
+      "suits": [
+        "body",
+        "heading",
+        "display"
+      ],
+      "start": [
+        [
+          "lora",
+          "Lora",
+          "A well-balanced serif for reading."
+        ],
+        [
+          "ebgaramond",
+          "EB Garamond",
+          "A faithful Garamond: refined and bookish."
+        ]
+      ],
+      "deeper": [
+        [
+          "crimsonpro",
+          "Crimson Pro",
+          "A book face made for screens."
+        ],
+        [
+          "cormorantgaramond",
+          "Cormorant Garamond",
+          "Very fine: for large sizes only."
+        ],
+        [
+          "newsreader",
+          "Newsreader",
+          "Made for long reading online."
+        ],
+        [
+          "librebaskerville",
+          "Libre Baskerville",
+          "Sturdy and traditional."
+        ]
+      ]
+    },
+    {
+      "id": "text-serif",
+      "name": "Editorial serif",
+      "text": "Built for long articles: sturdy, clear and serious.",
+      "voices": [
+        "editorial",
+        "serious",
+        "clear"
+      ],
+      "suits": [
+        "body",
+        "heading",
+        "display"
+      ],
+      "start": [
+        [
+          "sourceserif4",
+          "Source Serif 4",
+          "Clear and contemporary."
+        ],
+        [
+          "literata",
+          "Literata",
+          "Designed for reading books on screens."
+        ]
+      ],
+      "deeper": [
+        [
+          "gelasio",
+          "Gelasio",
+          "A Georgia lookalike."
+        ],
+        [
+          "ptserif",
+          "PT Serif",
+          "Solid and legible."
+        ]
+      ]
+    },
+    {
+      "id": "high-contrast-serif",
+      "name": "High-contrast serif",
+      "text": "Thick and thin strokes: dramatic, fashionable, luxurious.",
+      "voices": [
+        "elegant",
+        "dramatic",
+        "refined",
+        "luxurious"
+      ],
+      "suits": [
+        "display",
+        "heading",
+        "wordmark"
+      ],
+      "start": [
+        [
+          "playfairdisplay",
+          "Playfair Display",
+          "High contrast: delicate at small sizes."
+        ],
+        [
+          "bodonimoda",
+          "Bodoni Moda",
+          "A modern Bodoni: sharp and fashionable."
+        ]
+      ],
+      "deeper": [
+        [
+          "dmserifdisplay",
+          "DM Serif Display",
+          "Bold and friendly at large sizes."
+        ],
+        [
+          "abrilfatface",
+          "Abril Fatface",
+          "A heavy poster face. It has no italic."
+        ],
+        [
+          "gloock",
+          "Gloock",
+          "Sturdy, with a high-contrast feel."
+        ]
+      ]
+    },
+    {
+      "id": "soft-serif",
+      "name": "Soft serif",
+      "text": "Rounded, old-style serifs with personality: warm and a little quirky.",
+      "voices": [
+        "characterful",
+        "warm",
+        "playful",
+        "editorial"
+      ],
+      "suits": [
+        "display",
+        "heading",
+        "wordmark"
+      ],
+      "start": [
+        [
+          "fraunces",
+          "Fraunces",
+          "A soft, old-style display serif with personality."
+        ],
+        [
+          "youngserif",
+          "Young Serif",
+          "Heavy, warm and friendly. It has no italic."
+        ]
+      ],
+      "deeper": [
+        [
+          "instrumentserif",
+          "Instrument Serif",
+          "Condensed and graceful."
+        ]
+      ]
+    },
+    {
+      "id": "slab-serif",
+      "name": "Slab serif",
+      "text": "Blocky serifs: sturdy, practical, a little industrial.",
+      "voices": [
+        "sturdy",
+        "practical",
+        "confident"
+      ],
+      "suits": [
+        "display",
+        "heading",
+        "body"
+      ],
+      "start": [
+        [
+          "bitter",
+          "Bitter",
+          "A slab made for reading on screens."
+        ],
+        [
+          "rokkitt",
+          "Rokkitt",
+          "Tall, tight and friendly."
+        ]
+      ],
+      "deeper": [
+        [
+          "creteround",
+          "Crete Round",
+          "Soft, rounded slab serifs."
+        ],
+        [
+          "alfaslabone",
+          "Alfa Slab One",
+          "A heavy poster slab. It has no italic."
+        ]
+      ]
+    },
+    {
+      "id": "formal-script",
+      "name": "Formal script",
+      "text": "Calligraphy: invitations, signatures, a touch of ceremony. Never for reading.",
+      "voices": [
+        "elegant",
+        "romantic",
+        "formal"
+      ],
+      "suits": [
+        "wordmark",
+        "display"
+      ],
+      "start": [
+        [
+          "greatvibes",
+          "Great Vibes",
+          "A flowing formal script."
+        ],
+        [
+          "playball",
+          "Playball",
+          "A sporty, retro script."
+        ]
+      ],
+      "deeper": [
+        [
+          "pinyonscript",
+          "Pinyon Script",
+          "Engraver's script."
+        ],
+        [
+          "allura",
+          "Allura",
+          "Light and graceful."
+        ],
+        [
+          "parisienne",
+          "Parisienne",
+          "Slanted and romantic."
+        ],
+        [
+          "alexbrush",
+          "Alex Brush",
+          "A brush-pen script."
+        ]
+      ]
+    },
+    {
+      "id": "casual-script",
+      "name": "Casual script",
+      "text": "Brush and ink in a hurry: personal, lively, handmade.",
+      "voices": [
+        "personal",
+        "playful",
+        "romantic"
+      ],
+      "suits": [
+        "wordmark",
+        "display"
+      ],
+      "start": [
+        [
+          "dancingscript",
+          "Dancing Script",
+          "A script: for the name and a few big words, never for reading. It has no italic."
+        ],
+        [
+          "pacifico",
+          "Pacifico",
+          "A surf-brush script."
+        ]
+      ],
+      "deeper": [
+        [
+          "sacramento",
+          "Sacramento",
+          "A thin monoline script."
+        ],
+        [
+          "kaushanscript",
+          "Kaushan Script",
+          "A brush script with energy."
+        ]
+      ]
+    },
+    {
+      "id": "handwriting",
+      "name": "Handwriting",
+      "text": "Looks written by a person: informal and personal.",
+      "voices": [
+        "personal",
+        "playful",
+        "casual"
+      ],
+      "suits": [
+        "display",
+        "wordmark"
+      ],
+      "start": [
+        [
+          "caveat",
+          "Caveat",
+          "A casual handwriting."
+        ],
+        [
+          "patrickhand",
+          "Patrick Hand",
+          "Tidy, friendly handwriting."
+        ]
+      ],
+      "deeper": [
+        [
+          "shadowsintolight",
+          "Shadows Into Light",
+          "Loose, light marker."
+        ],
+        [
+          "indieflower",
+          "Indie Flower",
+          "Round and cheerful."
+        ],
+        [
+          "kalam",
+          "Kalam",
+          "A neat handwriting."
+        ]
+      ]
+    },
+    {
+      "id": "condensed-display",
+      "name": "Condensed display",
+      "text": "Tall, narrow capitals: posters, headlines, strong statements.",
+      "voices": [
+        "bold",
+        "confident",
+        "modern"
+      ],
+      "suits": [
+        "display",
+        "wordmark",
+        "heading"
+      ],
+      "start": [
+        [
+          "bebasneue",
+          "Bebas Neue",
+          "All capitals: tall and punchy."
+        ],
+        [
+          "oswald",
+          "Oswald",
+          "A reworked gothic, narrow and strong."
+        ]
+      ],
+      "deeper": [
+        [
+          "anton",
+          "Anton",
+          "Heavy and tall."
+        ],
+        [
+          "archivonarrow",
+          "Archivo Narrow",
+          "A narrow grotesque, also for text."
+        ],
+        [
+          "leaguegothic",
+          "League Gothic",
+          "A classic condensed gothic."
+        ]
+      ]
+    },
+    {
+      "id": "mono",
+      "name": "Monospace",
+      "text": "Every letter the same width: technical, precise, a hint of code.",
+      "voices": [
+        "technical",
+        "precise",
+        "modern"
+      ],
+      "suits": [
+        "ui",
+        "display",
+        "wordmark"
+      ],
+      "start": [
+        [
+          "jetbrainsmono",
+          "JetBrains Mono",
+          "Made for code: very legible."
+        ],
+        [
+          "robotomono",
+          "Roboto Mono",
+          "A neutral mono."
+        ]
+      ],
+      "deeper": [
+        [
+          "spacemono",
+          "Space Mono",
+          "Geometric and retro."
+        ]
+      ]
+    }
+  ]
+}

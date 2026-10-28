@@ -118,6 +118,10 @@ case "$cmd" in
     need_env
     [ $# -eq 1 ] || die "usage: brand.sh palette-page DIR"
     exec "$ENV/venv/bin/python" -I -B "$LIB/palettepage.py" "$@" ;;
+  type-page)
+    need_env
+    [ $# -eq 2 ] || { [ $# -eq 4 ] && [ "$3" = "--stage" ]; } || die "usage: brand.sh type-page DIR CANDIDATES.json [--stage taste|depth|roles]"
+    exec "$ENV/venv/bin/python" -I -B "$LIB/typepage.py" "$@" ;;
   check-page)
     need_env
     [ $# -eq 2 ] || die "usage: brand.sh check-page DIR PAGE.html"
@@ -134,5 +138,5 @@ case "$cmd" in
     need_env
     [ $# -eq 2 ] || die "usage: brand.sh palette DIR ROUND.json"
     exec "$ENV/venv/bin/python" -I -B "$LIB/palette.py" "$@" ;;
-  *) die "usage: brand.sh setup | fonts DIR CANDIDATES.json | palette DIR ROUND.json | palette-page DIR | serve DIR [--port N] | check-page DIR PAGE.html | logo-prep [--mark] DIR IMAGE | logo-proposals DIR CANDIDATES.json [--choose ALT[:FACE]] | logo DIR | board [--check] DIR" ;;
+  *) die "usage: brand.sh setup | fonts DIR CANDIDATES.json | palette DIR ROUND.json | palette-page DIR | type-page DIR CANDIDATES.json [--stage S] | serve DIR [--port N] | check-page DIR PAGE.html | logo-prep [--mark] DIR IMAGE | logo-proposals DIR CANDIDATES.json [--choose ALT[:FACE]] | logo DIR | board [--check] DIR" ;;
 esac
