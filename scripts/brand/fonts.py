@@ -81,6 +81,13 @@ def facts_for(brand, cand, base, root, languages):
         raise Refused(f"candidate {cand.get('id')}: files must be plain font file names (.ttf, .otf or .woff2)")
     folder = os.path.join(root, directory)
     paths = [fetch(base, folder, directory, n) for n in names]
+    pinned = cand.get("sha256")
+    if isinstance(pinned, dict):    # a face from the curated list: its files must be the ones whose hashes were recorded
+        for n, path in zip(names, paths):
+            if n in pinned and sha256(path) != pinned[n]:
+                os.remove(path)
+                raise Refused(f"{cand.get('family', directory)}: {n} does not match its pinned hash: refused, and the "
+                              "download removed")
     licence = None
     for name in LICENCES:
         licence = fetch(base, folder, directory, name, optional=True)

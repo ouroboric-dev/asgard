@@ -48,6 +48,7 @@ check "it refuses an unknown command" [ $? -eq 2 ]
 # Each case works in its own fresh copy of the scaffold; nothing is reset between cases.
 PY="$(sed -n 's/.*(\(.*\))$/\1/p' "$T/setup2.out")/venv/bin/python"
 FX="$HERE/brand_fixtures.py"
+TLIBDIR="$T/typelib"; export TLIBDIR
 PLAYWRIGHT_BROWSERS_PATH="$(dirname "$(dirname "$(dirname "$PY")")")/browsers"; export PLAYWRIGHT_BROWSERS_PATH
 fx() { "$PY" -I "$FX" "$@"; }
 # use NAME: a fresh copy of the scaffold at $T/NAME; sets C, L (its logo folder) and SRC (her PNGs).
@@ -728,5 +729,141 @@ check "a round without candidates still gives a page" ppgcode 0
 printf '{"step": "palette", "choice": {"preset": "bold", "role-accent": "keep"}, "reason": "Plum feels like us"}' >"$CH/palette.json"; palpage
 check "a saved choice is restored in the page" check_page "$PG"
 check "and says so" says "$C.cp.out" "reopens on the saved choice"
+
+# The typography pages (design system tasks DS-T15): width first (a direction at a time), then depth in the directions she
+# likes, then the roles. Each page is built from what the one before saved.
+use typage; CH="$C/$ID_REL/choices"; TLIB="$T/typelib"; TDL="$T/typedl"
+ALL="$(python3 -c 'print(",".join("%x" % c for c in range(0x20, 0x7f)))')"
+fx face "$TLIB/plainface" "Plain Face" "PlainFace-Regular.ttf" "$ALL" 400 0 - ofl
+fx face "$TLIB/slantface" "Slant Face" "SlantFace[wght].ttf" "$ALL" 400 0 wght ofl
+fx face "$TLIB/slantface" "Slant Face" "SlantFace-Italic[wght].ttf" "$ALL" 400 1 wght ofl
+fx face "$TLIB/boldface" "Bold Face" "BoldFace-Regular.ttf" "$ALL" 700 0 - ofl ring
+fx face "$TLIB/penface" "Pen Face" "PenFace-Regular.ttf" "$ALL" 400 0 - ofl tall
+fx face "$TLIB/softface" "Soft Face" "SoftFace-Regular.ttf" "$ALL" 400 0 - ofl narrow
+fx face "$TLIB/roundface" "Round Face" "RoundFace-Regular.ttf" "$ALL" 500 0 - ofl ring
+fx face "$TLIB/inkface" "Ink Face" "InkFace-Regular.ttf" "$ALL" 400 0 - ofl narrow
+python3 - "$T/faces.json" "$TLIB" <<'PY'
+import hashlib, json, os, sys
+out, lib = sys.argv[1:]
+def face(i, fam, kind, direction, tier, suits, files):
+    return {"id": i, "family": fam, "dir": i + "face", "kind": kind, "direction": direction, "tier": tier, "voices": ["calm"], "suits": suits,
+            "note": f"{fam} for the test.", "licence": "OFL-1.1",
+            "files": [{"name": n, "sha256": hashlib.sha256(open(os.path.join(lib, i + "face", n), "rb").read()).hexdigest()} for n in files]}
+SANS, SERIF, SCRIPT = ["body", "heading", "ui"], ["body", "heading", "display"], ["wordmark", "display"]
+json.dump({"library": "test", "ref": "0" * 40,
+  "directions": [{"id": "clean", "name": "Clean sans", "text": "Plain and neutral.", "voices": ["calm"], "suits": SANS},
+                 {"id": "book", "name": "Book serif", "text": "Warm and classic.", "voices": ["warm"], "suits": SERIF},
+                 {"id": "pen", "name": "Pen script", "text": "Written by hand.", "voices": ["personal"], "suits": SCRIPT}],
+  "faces": [face("plain", "Plain Face", "sans", "clean", "start", SANS, ["PlainFace-Regular.ttf"]),
+            face("round", "Round Face", "sans", "clean", "start", SANS, ["RoundFace-Regular.ttf"]),
+            face("slant", "Slant Face", "serif", "book", "start", SERIF + ["ui"], ["SlantFace[wght].ttf", "SlantFace-Italic[wght].ttf"]),
+            face("bold", "Bold Face", "serif", "book", "start", SERIF, ["BoldFace-Regular.ttf"]),
+            face("soft", "Soft Face", "serif", "book", "deeper", SERIF, ["SoftFace-Regular.ttf"]),
+            face("pen", "Pen Face", "script", "pen", "start", SCRIPT, ["PenFace-Regular.ttf"]),
+            face("ink", "Ink Face", "script", "pen", "start", SCRIPT, ["InkFace-Regular.ttf"])]}, open(out, "w"))
+PY
+python3 - "$T/type-cands.json" <<'PY'
+import json, sys
+json.dump({"languages": ["en"], "sample": {"name": "Example Studio", "tagline": "Portraits that feel like you", "about": "We photograph families the way they are, laughing and a little messy."}}, open(sys.argv[1], "w"))
+PY
+typage() { ASGARD_FACES="$T/faces.json" ASGARD_FONTS_BASE="file://$TLIB" ASGARD_FONTS_DIR="$TDL" "$BRAND" type-page "$@" >"$C.tp.out" 2>&1; echo $? >"$C.tp.code"; }
+# shellcheck disable=SC2329
+tpcode() { [ "$(cat "$C.tp.code")" = "$1" ]; }
+typage "$C"
+check "type-page without a candidates file is refused" tpcode 2
+typage "$C" "$T/type-cands.json"
+check "with nothing saved, type-page builds the first page: the taste page" tpcode 0
+TASTE="$CH/type-taste.html"
+check "which is written in the choices folder, ignored by git" test -f "$TASTE"
+check "and says which page it is" says "$C.tp.out" "taste"
+check "the taste page passes the page check: every face loads, every option changes it" check_page "$TASTE"
+check "every direction has its own card, with its name and what it feels like" \
+  fx page "$TASTE" 'all(x in html for x in ("Clean sans", "Plain and neutral.", "Book serif", "Warm and classic.", "Pen script", "Written by hand."))'
+check "only the faces to start with are on it: width before depth" \
+  fx page "$TASTE" 'sorted(f["id"] for f in d["faces"]) == ["bold", "ink", "pen", "plain", "round", "slant"]'
+check "one card is shown at a time" fx browse "$TASTE" 'document.querySelectorAll("[data-card]:not([hidden])").length === 1'
+check "a face is shown in her own words, in its own font" fx page "$TASTE" '"Portraits that feel like you" in html and html.count("data:font/woff2;base64") >= 6'
+check "the faces are subset to the words shown, so the page stays small" fx page "$TASTE" 'len(html) < 400000'
+check "so the page fetches nothing" fx page "$TASTE" '"src=\"http" not in html and "url(http" not in html'
+check "a face's facts are read from its file: the face with no italic is shown without one" \
+  fx page "$TASTE" 'all(f["italic"] is False for f in d["faces"] if f["id"] == "plain") and all(f["italic"] is True for f in d["faces"] if f["id"] == "slant")'
+check "what she likes is gathered as she chooses" \
+  fx browse "$TASTE" '(() => { document.querySelector("input[name=like-clean][value=plain]").click(); document.querySelector("input[name=like-book][value=both]").click(); const r = window.__choiceResult(); return r.likes.join() === "plain,slant,bold" && r.directions.join() === "clean,book"; })()'
+check "and shown in a strip that is always on the page" \
+  fx browse "$TASTE" '(() => { document.querySelector("input[name=like-pen][value=ink]").click(); return document.getElementById("favs").textContent.includes("Ink Face"); })()'
+check "nothing liked gives an empty result" fx browse "$TASTE" 'window.__choiceResult().likes.length === 0'
+typage "$C" "$T/type-cands.json" --stage depth
+check "the depth page needs the taste saved first" tpcode 2
+check "and says what to do" says "$C.tp.out" "taste"
+printf '{"step": "type-taste", "choice": {"like-clean": "plain", "like-book": "both", "like-pen": "neither"}, "reason": "Calm and warm", "result": {"likes": ["plain", "slant", "bold"], "directions": ["clean", "book"]}}' >"$CH/type-taste.json"
+typage "$C" "$T/type-cands.json"
+DEPTH="$CH/type-depth.html"
+check "with the taste saved, type-page builds the depth page" tpcode 0
+check "which says so" says "$C.tp.out" "depth"
+check "the depth page passes the page check" check_page "$DEPTH"
+check "it opens only the directions she liked" fx page "$DEPTH" 'sorted(x["id"] for x in d["directions"]) == ["book", "clean"]'
+check "and offers the faces held back there: the held-back face of the liked direction" \
+  fx page "$DEPTH" '[f["id"] for f in d["faces"] if f["tier"] == "deeper"] == ["soft"]'
+check "but none of the direction she did not like" fx page "$DEPTH" 'not any(f["id"] in ("pen", "ink") for f in d["faces"])'
+check "her favourites so far are kept: the faces she liked are on the page" \
+  fx page "$DEPTH" 'all(i in [f["id"] for f in d["faces"]] for i in ("plain", "slant", "bold"))'
+check "a face chosen in depth joins her favourites" \
+  fx browse "$DEPTH" '(() => { document.querySelector("input[name=more-book][value=soft]").click(); return window.__choiceResult().favourites.join() === "plain,slant,bold,soft"; })()'
+printf '{"step": "type-depth", "choice": {"more-book": "soft"}, "reason": "Softer", "result": {"favourites": ["plain", "slant", "bold", "soft"]}}' >"$CH/type-depth.json"
+typage "$C" "$T/type-cands.json"
+ROLES="$CH/type.html"
+check "with the depth saved, type-page builds the roles page" tpcode 0
+check "which says so" says "$C.tp.out" "roles"
+check "the roles page passes the page check" check_page "$ROLES"
+check "every role has its own card, with its job, where it appears and how often it is seen" \
+  fx page "$ROLES" 'all(x in html for x in ("name in the logo", "The few big words", "Section titles", "Everything people read", "Buttons, labels"))'
+check "a role is offered her favourites that suit it: the script face she did not like is not offered" \
+  fx page "$ROLES" 'sorted(f["id"] for f in d["roleFaces"]["wordmark"]) == sorted(set(f["id"] for f in d["roleFaces"]["wordmark"]))'
+check "the body is offered the faces that suit it" fx page "$ROLES" '"plain" in [f["id"] for f in d["roleFaces"]["body"]] and "pen" not in [f["id"] for f in d["roleFaces"]["body"]]'
+check "a role none of her favourites suit says so, and offers faces that do" \
+  fx page "$ROLES" '"of your favourites suit this role" in html and len(d["roleFaces"]["wordmark"]) >= 1'
+check "a face without the italic the body needs says so, in words" \
+  fx browse "$ROLES" '(() => { document.querySelector("input[name=type-body][value=plain]").click(); return document.getElementById("warnings").textContent.includes("Plain Face has no italic"); })()'
+check "and the face that has it does not" \
+  fx browse "$ROLES" '(() => { document.querySelector("input[name=type-body][value=slant]").click(); return !document.getElementById("warnings").textContent.includes("no italic"); })()'
+check "the final choice names each role's family, licence and files" \
+  fx browse "$ROLES" '(() => { document.querySelector("input[name=type-body][value=slant]").click(); const b = window.__choiceResult().fonts.body; return b.family === "Slant Face" && b.licence === "OFL-1.1" && b.files.length === 2; })()'
+check "the pages build strictly with the docs and the names check passes" builds "$C"
+check "and the names check" names_pass "$C"
+python3 - "$T/faces.json" "$T/faces-bad.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1])); d["faces"][0]["files"][0]["sha256"] = "0" * 64; json.dump(d, open(sys.argv[2], "w"))
+PY
+ASGARD_FACES="$T/faces-bad.json" ASGARD_FONTS_BASE="file://$TLIB" ASGARD_FONTS_DIR="$T/typedl2" "$BRAND" type-page "$C" "$T/type-cands.json" --stage taste >"$C.tp.out" 2>&1; echo $? >"$C.tp.code"
+check "a face whose file does not match its pinned hash is refused" tpcode 2
+check "and named" says "$C.tp.out" "Plain Face"
+use typage2; CH="$C/$ID_REL/choices"; mkdir -p "$CH"
+printf '{"step": "type", "choice": {"type-body": "slant"}, "reason": "Warm", "result": {"fonts": {}}}' >"$CH/type.json"; typage "$C" "$T/type-cands.json" --stage roles
+check "a saved final choice is restored on the roles page" check_page "$CH/type.html"
+check "and says so" says "$C.cp.out" "reopens on the saved choice"
+
+# The pin script (design system tasks DS-T15): the curated list is made from a source list by fetching and hashing the files.
+python3 - "$T/pin-source.json" "$T/pin-listing.json" "$TLIB" <<'PY'
+import json, os, sys
+src, listing, lib = sys.argv[1:]
+json.dump({"directions": [{"id": "clean", "name": "Clean", "text": "Plain.", "voices": ["calm"], "suits": ["body"],
+                           "start": [["plainface", "Plain Face", "A plain face."]],
+                           "deeper": [["slantface", "Slant Face", "Two files."], ["ghostface", "Ghost Face", "Not in the library."]]}]}, open(src, "w"))
+json.dump({d: [[n, os.path.getsize(os.path.join(lib, d, n))] for n in sorted(os.listdir(os.path.join(lib, d))) if n.endswith(".ttf")]
+           for d in os.listdir(lib)}, open(listing, "w"))
+PY
+pin() { ASGARD_FONTS_BASE="file://$TLIB" "$PY" -I "$HERE/../brand/pin_faces.py" --ref 0000000000000000000000000000000000000000 --listing "$T/pin-listing.json" "$@" >"$T/pin.out" 2>&1; echo $? >"$T/pin.code"; }
+# shellcheck disable=SC2329
+pincode() { [ "$(cat "$T/pin.code")" = "$1" ]; }
+pin "$T/pin-source.json" "$T/pin-out.json"
+check "the pin script writes the list from the source" pincode 0
+check "with the directions and each face's tier" fx json "$T/pin-out.json" 'd["directions"][0]["id"] == "clean" and [(f["id"], f["tier"]) for f in d["faces"]] == [("plainface", "start"), ("slantface", "deeper")]'
+check "and the hash of each file as the library has it" \
+  fx json "$T/pin-out.json" '__import__("hashlib").sha256(open(__import__("os").environ["TLIBDIR"] + "/plainface/PlainFace-Regular.ttf", "rb").read()).hexdigest() == d["faces"][0]["files"][0]["sha256"]'
+check "a face that is not in the library is left out, and said so" says "$T/pin.out" "Ghost Face: not in the library"
+pin --max-files 1 "$T/pin-source.json" "$T/pin-out2.json"
+check "a face with more files than allowed is left out, and said so" says "$T/pin.out" "Slant Face: 2 files"
+check "the review table shows the weights, the italic and the glyphs a language lacks (the fixture lacks the typographic ones)" says_all "$T/pin.out" "| clean | start | Plain Face | 1 |" "| 400 | no |" "en:-"
+check "a face with no italic is shown so in the review table" says "$T/pin.out" "| 1 | .* | 400 | no |"
 
 exit "$fail"
