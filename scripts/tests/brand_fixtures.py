@@ -135,8 +135,9 @@ def font(tokens, folder, family, flavor):
         fh.write("SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007\n")
     t = load(tokens)
     rel = os.path.relpath(folder, os.path.dirname(tokens))
-    t["type"]["fonts"]["heading"].update({"family": family, "fallback": "serif", "weights": [400], "files": rel,
-                                          "licence": "OFL-1.1", "source": "https://example.org/fonts"})
+    for role in ("wordmark", "display", "heading", "body", "ui"):
+        t["type"]["fonts"][role].update({"family": family, "fallback": "serif", "weights": [400], "files": rel,
+                                         "licence": "OFL-1.1", "source": "https://example.org/fonts"})
     save(tokens, t)
 
 
@@ -161,6 +162,25 @@ def main(args):
                                            "colour_delta": 0.0, "colours": light},
                                  "dark": {"from": "derived", "colours": dark}},
                        "proposed_brand_tokens": [], "gaps": [], "faithful": True})
+    elif cmd == "accepted":  # accepted TOKENS CHECK VALUE REASON
+        t = load(args[1])
+        t["accepted"].append({"check": args[2], "value": args[3], "reason": args[4], "by": "Alex", "date": "2026-10-28"})
+        save(args[1], t)
+    elif cmd == "message-colour":  # message-colour TOKENS HEX: the message colours become one distinctive colour
+        t = load(args[1])
+        for mode in ("light", "dark"):
+            t[mode].update({"ok": args[2], "warn": args[2], "crit": args[2]})
+        save(args[1], t)
+    elif cmd == "lacks-colour":  # lacks-colour PNG HEX: no pixel has this colour
+        im = Image.open(args[1]).convert("RGB")
+        want = tuple(int(args[2][i:i + 2], 16) for i in (1, 3, 5))
+        return 1 if any(c == want for _, c in (im.getcolors(1 << 24) or [])) else 0
+    elif cmd == "half-width":  # half-width HTML PNG: the HTML shows the image at half its pixel width
+        import re
+        shown = int(re.search(r'width="(\d+)"', open(args[1], encoding="utf-8").read()).group(1))
+        return 0 if Image.open(args[2]).width == 2 * shown else 1
+    elif cmd == "size":  # size PNG WxH
+        return 0 if "x".join(map(str, Image.open(args[1]).size)) == args[2] else 1
     elif cmd == "ink":
         im = Image.open(args[1]).convert("RGB")
         return 0 if len(im.getcolors(1 << 24) or []) > 1 else 1
