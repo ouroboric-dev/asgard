@@ -164,14 +164,14 @@ def face(folder, family, name, chars, weight, italic, axis, licence, shape="-"):
     pen.closePath()
     glyph = pen.glyph()
     glyphs = {g: glyph for g in order}
-    if shape in ("ring", "narrow") and "g006F" in glyphs:  # the letter o with a counter: wide, or a narrow slot
+    if shape in ("ring", "narrow", "tall") and "g006F" in glyphs:  # the letter o with a counter: wide, or a narrow slot
         ring = TTGlyphPen(None)
         ring.moveTo((50, 0))
         ring.lineTo((50, 700))
         ring.lineTo((650, 700))
         ring.lineTo((650, 0))
         ring.closePath()
-        inner = (150, 100, 550, 600) if shape == "ring" else (320, 100, 380, 600)
+        inner = {"ring": (150, 100, 550, 600), "narrow": (320, 100, 380, 600), "tall": (220, 100, 480, 650)}[shape]
         ring.moveTo((inner[0], inner[1]))
         ring.lineTo((inner[2], inner[1]))
         ring.lineTo((inner[2], inner[3]))
@@ -248,6 +248,39 @@ def arcs(path, flat):
     im.save(path)
 
 
+def optionpage(path, kind, font_uri=""):
+    """A small choice page built the way the shared module builds them, with options that do or do not change it."""
+    import os
+    import sys as _sys
+    _sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "brand"))
+    import choicepage
+    rules = {"a": "color: #aa0000;", "b": "color: #0000aa;", "c": "color: #aa0000;" if kind == "dead" else "color: #00aa00;"}
+    if kind == "dark-only":   # c looks like a in light mode, and differs in dark mode
+        rules = {"a": "color: #aa0000;", "b": "color: #0000aa;", "c": "color: #aa0000;"}
+    radios = "".join(f'<label><input type="radio" name="tone" value="{v}"{" checked" if v == "a" else ""}> {v}</label>'
+                     for v in ("a", "b", "c"))
+    css = "".join(f'[data-tone="{v}"] .sample {{ {r} }}' for v, r in rules.items())
+    if kind == "dark-only":
+        css += '@media (prefers-color-scheme: dark) { [data-tone="c"] .sample { color: #00aa00; } }'
+    face_css = ""
+    if kind in ("face-ok", "face-broken"):
+        src = font_uri if kind == "face-ok" else "data:font/ttf;base64,AAAA"
+        face_css = f"@font-face {{ font-family: 'Probe Face'; src: url({src}) format('truetype'); }}"
+    style = 'style="font-family: "Probe Face", serif"' if kind == "double-quoted" else \
+        f'style="font-family: {choicepage.quote_family("Probe Face")}, serif"'
+    body = (f'<fieldset data-option-group="tone"><legend>Tone</legend>{radios}</fieldset>'
+            f'<div data-preview data-tone="a" id="preview"><p class="sample" {style}>Sample text</p>'
+            + ('<img alt="broken" src="data:image/png;base64,AAAA">' if kind == "broken-image" else "") + "</div>"
+            "<script>document.querySelectorAll('input[name=tone]').forEach(function(r){r.addEventListener('change',function(){"
+            "document.getElementById('preview').dataset.tone=r.value;});});</script>")
+    saved = {"choice": {"tone": "b"}, "reason": "I like the blue"} if kind == "saved" else None
+    if kind == "unrestored":
+        saved = {"choice": {"tone": "b"}, "reason": "x"}
+    html = choicepage.skeleton("playground", "Fixture", "A fixture.", body, {}, saved, css=css + face_css,
+                               restore=(kind != "unrestored"))
+    open(path, "w", encoding="utf-8").write(html)
+
+
 def main(args):
     cmd = args[0]
     if cmd == "draw":
@@ -286,6 +319,64 @@ def main(args):
         want = tuple(int(args[2][i:i + 2], 16) for i in (1, 3, 5))
         im = Image.open(args[1]).convert("RGBA")
         return 0 if any(c[:3] == want and c[3] == 255 for _, c in im.getcolors(1 << 24)) else 1
+    elif cmd == "fontdata":  # fontdata: print a small TTF as a data: URI
+        import base64
+        import io
+
+        from fontTools.fontBuilder import FontBuilder
+        from fontTools.pens.ttGlyphPen import TTGlyphPen
+        fb = FontBuilder(1000, isTTF=True)
+        fb.setupGlyphOrder([".notdef", "A"])
+        fb.setupCharacterMap({65: "A"})
+        pen = TTGlyphPen(None)
+        pen.moveTo((0, 0))
+        pen.lineTo((500, 700))
+        pen.lineTo((1000, 0))
+        pen.closePath()
+        fb.setupGlyf({".notdef": pen.glyph(), "A": pen.glyph()})
+        fb.setupHorizontalMetrics({".notdef": (1000, 0), "A": (1000, 0)})
+        fb.setupHorizontalHeader(ascent=800, descent=-200)
+        fb.setupNameTable({"familyName": "Probe Face", "styleName": "Regular"})
+        fb.setupOS2()
+        fb.setupPost()
+        buf = io.BytesIO()
+        fb.save(buf)
+        print("data:font/ttf;base64," + base64.b64encode(buf.getvalue()).decode())
+    elif cmd == "http":  # http METHOD URL [BODY [CONTENT-TYPE [TOKEN [HOST]]]]: print the status, then the body
+        import urllib.error
+        import urllib.request
+        a = args[1:] + [""] * 6
+        method, url, body, ctype, token, host = a[:6]
+        headers = {}
+        if ctype:
+            headers["Content-Type"] = ctype
+        if token:
+            headers["X-Choice-Token"] = token
+        if host:
+            headers["Host"] = host
+        data = body.encode() if body else None
+        if body.startswith("@big"):
+            data = b'{"choice": {"tone": "a"}, "reason": "' + b"x" * 70000 + b'"}'
+        req = urllib.request.Request(url, data=data, method=method, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                print(r.status)
+                print(r.read().decode())
+        except urllib.error.HTTPError as e:
+            print(e.code)
+            print(e.read().decode())
+    elif cmd == "token":  # token URL: the token the served page carries
+        import re
+        import urllib.request
+        text = urllib.request.urlopen(args[1], timeout=10).read().decode()
+        print(re.search(r'window.__choiceToken = "([^"]*)"', text).group(1))
+    elif cmd == "freeport":
+        import socket
+        sock = socket.socket()
+        sock.bind(("127.0.0.1", 0))
+        print(sock.getsockname()[1])
+    elif cmd == "optionpage":  # optionpage PATH KIND: a choice page fixture for check-page (KIND: good, dead, dark-only, ...)
+        optionpage(args[1], args[2], args[3] if len(args) > 3 else "")
     elif cmd == "arcs":  # arcs PATH [flat]
         arcs(args[1], len(args) > 2 and args[2] == "flat")
     elif cmd == "colours":  # colours PNG MAX: opaque pixels have at most MAX colours, and the alpha is 0 or 255

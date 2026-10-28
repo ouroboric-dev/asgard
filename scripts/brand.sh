@@ -4,6 +4,8 @@
 #   brand.sh fonts DIR CANDIDATES  fetch candidate typefaces and their licences, write their facts (uses the network
 #                                  for files not yet downloaded; the facts go to DIR/docs/7-branding/identity/choices/)
 #   brand.sh palette DIR ROUND     check every preset of a palette round with the company's contrast rules
+#   brand.sh serve DIR [--port N]   serve the choice pages on 127.0.0.1 and save the founder's choices into DIR
+#   brand.sh check-page DIR PAGE     open a choice page in the headless browser: faces load, every option changes the page
 #   brand.sh logo-prep [--mark] DIR IMAGE   cut out, flatten and enlarge the founder's concept
 #   brand.sh logo-proposals DIR CANDIDATES [--choose ALT[:FACE]]   the logo review page; the chosen design as source PNGs
 #   brand.sh logo DIR              trace, recolour, derive, export and check the logo of the company in DIR
@@ -72,6 +74,18 @@ im.save(sys.argv[1] + "/smoke.png")
 vtracer.convert_image_to_svg_py(sys.argv[1] + "/smoke.png", sys.argv[1] + "/smoke.svg", colormode="color")
 sys.exit(0 if "<path" in open(sys.argv[1] + "/smoke.svg").read() else 1)' "$work" ||
     die "the tools installed but could not trace a test image with $("$PY" -V)"
+  # The headless browser that proves the choice pages. Playwright downloads the Chromium build its release pins, from its
+  # own CDN: that download cannot be checked against a hash here, unlike the packages and resvg.
+  PLAYWRIGHT_BROWSERS_PATH="$work/browsers" "$work/venv/bin/python" -I -m playwright install --only-shell chromium \
+    >/dev/null 2>&1 || die "Playwright could not download its Chromium"
+  PLAYWRIGHT_BROWSERS_PATH="$work/browsers" "$work/venv/bin/python" -I -c '
+from playwright.sync_api import sync_playwright
+with sync_playwright() as p:
+    b = p.chromium.launch()
+    page = b.new_page()
+    page.set_content("<p>ok</p>")
+    assert page.inner_text("p") == "ok"
+    b.close()' || die "the headless browser installed but could not open a page"
   mv "$work" "$ENV"
   # The venv's scripts name the folder it was made in; the tools run its python by path, so the move is safe.
   touch "$ENV/.complete"
@@ -100,6 +114,14 @@ case "$cmd" in
     need_env
     [ $# -eq 2 ] || { [ $# -eq 4 ] && [ "$3" = "--choose" ]; } || die "usage: brand.sh logo-proposals DIR CANDIDATES.json [--choose ALTERNATIVE[:FACE]]"
     exec "$ENV/venv/bin/python" -I -B "$LIB/proposals.py" --resvg "$ENV/bin/resvg" "$@" ;;
+  check-page)
+    need_env
+    [ $# -eq 2 ] || die "usage: brand.sh check-page DIR PAGE.html"
+    exec env PLAYWRIGHT_BROWSERS_PATH="$ENV/browsers" "$ENV/venv/bin/python" -I -B "$LIB/pagecheck.py" "$@" ;;
+  serve)
+    need_env
+    [ $# -ge 1 ] && [ $# -le 3 ] || die "usage: brand.sh serve DIR [--port N]"
+    exec "$ENV/venv/bin/python" -I -B "$LIB/serve.py" "$@" ;;
   fonts)
     need_env
     [ $# -eq 2 ] || die "usage: brand.sh fonts DIR CANDIDATES.json"
@@ -108,5 +130,5 @@ case "$cmd" in
     need_env
     [ $# -eq 2 ] || die "usage: brand.sh palette DIR ROUND.json"
     exec "$ENV/venv/bin/python" -I -B "$LIB/palette.py" "$@" ;;
-  *) die "usage: brand.sh setup | fonts DIR CANDIDATES.json | palette DIR ROUND.json | logo-prep [--mark] DIR IMAGE | logo-proposals DIR CANDIDATES.json [--choose ALT[:FACE]] | logo DIR | board [--check] DIR" ;;
+  *) die "usage: brand.sh setup | fonts DIR CANDIDATES.json | palette DIR ROUND.json | serve DIR [--port N] | check-page DIR PAGE.html | logo-prep [--mark] DIR IMAGE | logo-proposals DIR CANDIDATES.json [--choose ALT[:FACE]] | logo DIR | board [--check] DIR" ;;
 esac
