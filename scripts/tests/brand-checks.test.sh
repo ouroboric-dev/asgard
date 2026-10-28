@@ -107,7 +107,8 @@ assert rows and all(keys <= r.keys() for r in rows), rows[:1]
 # The font licence check (spec §5.2). Fonts are built here with fontTools; no font file is committed.
 ID="$T/a/docs/7-branding/identity"
 # font FILE FAMILY [FSTYPE] [DESCRIPTION] [URL] [variable]: a minimal TrueType font with those name and OS/2
-# values; "variable" gives it a weight axis from 100 to 900.
+# values; "variable" gives it a weight axis from 100 to 900. Environment: FONT_CHARS (the characters it covers,
+# default "A"), FONT_WEIGHT (usWeightClass), FONT_ITALIC=1 (an italic face), FONT_ITAL_AXIS=1 (an italic axis).
 font() {
   python3 - "$@" <<'EOF'
 import sys
@@ -118,14 +119,17 @@ fstype = int(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3] else 0
 desc = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else None
 url = sys.argv[5] if len(sys.argv) > 5 and sys.argv[5] else None
 variable = len(sys.argv) > 6 and sys.argv[6] == "variable"
+import os
+chars = os.environ.get("FONT_CHARS", "A")
+gname = {c: "g%04X" % ord(c) for c in chars}
 fb = FontBuilder(1000, isTTF=True)
-fb.setupGlyphOrder([".notdef", "A"])
-fb.setupCharacterMap({ord("A"): "A"})
+fb.setupGlyphOrder([".notdef", *gname.values()])
+fb.setupCharacterMap({ord(c): n for c, n in gname.items()})
 pen = TTGlyphPen(None)
 pen.moveTo((0, 0)); pen.lineTo((500, 700)); pen.lineTo((1000, 0)); pen.closePath()
 glyph = pen.glyph()
-fb.setupGlyf({".notdef": glyph, "A": glyph})
-fb.setupHorizontalMetrics({".notdef": (1000, 0), "A": (1000, 0)})
+fb.setupGlyf({".notdef": glyph, **{n: glyph for n in gname.values()}})
+fb.setupHorizontalMetrics({".notdef": (1000, 0), **{n: (1000, 0) for n in gname.values()}})
 fb.setupHorizontalHeader(ascent=800, descent=-200)
 names = {"familyName": family, "styleName": "Regular"}
 if desc:
@@ -133,10 +137,16 @@ if desc:
 if url:
     names["licenseInfoURL"] = url
 fb.setupNameTable(names)
-fb.setupOS2(fsType=fstype)
+italic = os.environ.get("FONT_ITALIC") == "1"
+fb.setupOS2(fsType=fstype, usWeightClass=int(os.environ.get("FONT_WEIGHT", "400")), fsSelection=1 if italic else 0x40)
 fb.setupPost()
+if italic:
+    fb.font["head"].macStyle = 2
 if variable:
-    fb.setupFvar(axes=[("wght", 100, 400, 900, "Weight")], instances=[])
+    axes = [("wght", 100, 400, 900, "Weight")]
+    if os.environ.get("FONT_ITAL_AXIS") == "1":
+        axes.append(("ital", 0, 0, 1, "Italic"))
+    fb.setupFvar(axes=axes, instances=[])
 fb.save(path)
 EOF
 }
@@ -344,5 +354,116 @@ check "and passes on a good palette" code 0
 cp "$T/tokens.template.json" "$TOKENS"
 check "run.sh runs the brand checks as one step (5.5.1)" grep -q 'brand.py" check' "$T/a/.ouroboric/checks/run.sh"
 check "the output names no tool" quiet_about "$T/out" "brand.py"
+
+# The design system's checks (design system tasks DS-T04; spec §3.1).
+ASCII="$(python3 -c 'print("".join(chr(c) for c in range(0x20, 0x7f)))')"
+TYPO="$(python3 -c 'print("\u2019\u201c\u201d\u2013\u2014\u2026\u20ac", end="")')"
+PT="áàâãçéêíóôõúüÁÀÂÃÇÉÊÍÓÔÕÚÜ"
+# tweak PYTHON: edit tokens.json (t is the parsed file) with a Python statement.
+tweak() {
+  python3 - "$TOKENS" "$1" <<'PY'
+import json, sys
+t = json.load(open(sys.argv[1]))
+exec(sys.argv[2])
+json.dump(t, open(sys.argv[1], "w"), indent=2)
+PY
+}
+
+# Foundations: presence, minimum body size, line height, focus indicator, touch target.
+fresh; brand foundations
+check "foundations: the template's starting set passes" code 0
+for k in space radius elevation motion focus target breakpoints; do
+  fresh; tweak "del t['$k']"; brand foundations
+  check "a missing $k fails" code 1
+  check "and names it" says "$T/out" "tokens.json: $k is missing"
+done
+fresh; tweak "del t['type']['scale']['sizes']"; brand foundations
+check "a missing type scale part fails and is named" says "$T/out" "tokens.json: type.scale.sizes is missing"
+fresh; tweak "t['type']['scale']['sizes']['body'] = 15"; brand foundations
+check "a body size under 16 px fails" code 1
+check "and says so" says "$T/out" "tokens.json: the body text is 15 px, under the minimum 16 px"
+fresh; tweak "t['type']['scale']['minimum'] = 14"; brand foundations
+check "a scale minimum under 16 px fails" code 1
+fresh; tweak "t['type']['scale']['lineHeight']['body'] = 1.4"; brand foundations
+check "a body line height under 1.5 fails" code 1
+check "and says so" says "$T/out" "tokens.json: the body line height is 1.4, under the minimum 1.5"
+fresh; tweak "t['focus']['width'] = 1"; brand foundations
+check "a focus indicator under 2 px fails" code 1
+check "and says so" says "$T/out" "tokens.json: the focus indicator is 1 px thick, under the minimum 2 px"
+fresh; tweak "t['target'] = 20"; brand foundations
+check "a touch target under 24 px fails" code 1
+check "and says so" says "$T/out" "tokens.json: the touch target is 20 px, under the minimum 24 px"
+palette "${GOOD[@]}"; brand foundations
+check "the focus colour at 3:1 against bg and surface in both modes passes" code 0
+palette "${GOOD[@]}" light.accent=#E8E8E8; brand foundations
+check "a focus colour under 3:1 fails" code 1
+check "and names the mode, the colour and the surface" says "$T/out" "tokens.json: light: the focus colour accent on bg is 1.2.:1, under the minimum 3:1"
+palette "${GOOD[@]}" light.accent=#E8E8E8; tweak "t['focus']['role'] = 'text'"; brand foundations
+check "the focus colour follows the role the tokens name" code 0
+
+# Accepted exceptions: a kept failure is accepted, until its value changes.
+fresh; tweak "t['target'] = 20; t['accepted'] = [{'check': 'target', 'value': '20', 'reason': 'Small icons on the dense toolbar.', 'by': 'Alex', 'date': '2026-10-28'}]"; brand foundations
+check "an accepted exception turns the failure into accepted: exit 0" code 0
+check "and reports it with her reason" says_all "$T/out" "target" "accepted" "Small icons on the dense toolbar."
+tweak "t['target'] = 16"; brand foundations
+check "when the value changes the exception is stale and the check fails again" code 1
+check "and says stale" says "$T/out" "stale"
+fresh; tweak "t['accepted'] = [{'check': 'target', 'value': '20', 'by': 'Alex', 'date': '2026-10-28'}]"; brand accepted
+check "an exception without a reason fails" code 1
+check "and names the entry and the field" says "$T/out" "tokens.json: accepted\[0\]: reason is missing"
+fresh; tweak "t['accepted'] = [{'check': 'target', 'value': '20', 'reason': 'Kept.', 'by': 'Alex', 'date': '2026-10-28'}]"; brand check
+check "an exception for a check that now passes is reported as no longer needed, not as a failure" says "$T/out" "no longer needed"
+fresh; palette "${GOOD[@]}" light.muted=#999999
+tweak "t['accepted'] = [{'check': 'contrast:light:muted/' + b, 'value': '#999999/' + v, 'reason': 'Decorative captions only.', 'by': 'Alex', 'date': '2026-10-28'} for b, v in (('bg', '#FFFFFF'), ('surface', '#F5F5F5'))]"; brand contrast
+check "a contrast failure can be accepted too" code 0
+check "and is reported as accepted" says "$T/out" "light: muted on bg is 2.84:1.*accepted"
+
+# The type checks read the font files: glyph coverage, the weights, the body face's italic.
+fresh; brand type
+check "type: no font chosen passes" code 0
+fresh; tweak "t['languages'] = ['pt']"; ofl_font "Test Sans"; role body "Test Sans" fonts/test OFL-1.1; brand type
+check "a font that lacks the clients' glyphs fails" code 1
+check "and names the role, the language and some of the missing characters" \
+  says "$T/out" "tokens.json: body (Test Sans): lacks 1[0-9][0-9] characters of pt, such as"
+FONT_CHARS="$ASCII$TYPO$PT" ofl_font "Test Sans"; brand type
+check "a font that covers them passes the glyph check" quiet_about "$T/out" "lacks"
+fresh; tweak "t['languages'] = ['xx']"; FONT_CHARS="$ASCII" ofl_font "Test Sans"; role body "Test Sans" fonts/test OFL-1.1; brand type
+check "a language the check has no characters for fails and is named" says "$T/out" "tokens.json: the language xx has no list of characters"
+fresh; tweak "t['languages'] = ['pt']"; ofl_font "Test Sans"; role heading "Test Sans" fonts/test OFL-1.1
+tweak "t['accepted'] = [{'check': 'type:heading:glyphs', 'value': 'Test Sans', 'reason': 'Portuguese is added later.', 'by': 'Alex', 'date': '2026-10-28'}]"; brand type
+check "a glyph failure can be accepted by the family" code 0
+check "and is reported as accepted with her reason" says_all "$T/out" "heading (Test Sans): lacks" "accepted: Portuguese is added later."
+
+LATIN="$ASCII$TYPO$PT"
+fresh; FONT_CHARS="$LATIN" ofl_font "Test Sans"; role body "Test Sans" fonts/test OFL-1.1; tweak "t['languages'] = ['pt']; t['type']['fonts']['body']['weights'] = [400, 700]"; brand type
+check "a weight the files do not have fails" code 1
+check "and says which, and what the files have" says "$T/out" "tokens.json: body (Test Sans): weight 700 is not in the font files (they have 400)"
+FONT_CHARS="$LATIN" ofl_font "Test Sans"; FONT_CHARS="$LATIN" font "$ID/fonts/test/Test-Variable.ttf" "Test Sans" 0 "" "" variable
+tweak "t['type']['fonts']['body']['weights'] = [400, 700]"; brand type
+check "a weight inside a variable font's axis passes the weight check" quiet_about "$T/out" "weight 700"
+tweak "t['type']['fonts']['body']['weights'] = [950]"; brand type
+check "a weight outside the axis fails" says "$T/out" "weight 950 is not in the font files (they have 100 to 900)"
+
+fresh; FONT_CHARS="$LATIN" ofl_font "Test Sans"; role body "Test Sans" fonts/test OFL-1.1; tweak "t['languages'] = ['pt']"; brand type
+check "a body face without an italic fails" code 1
+check "and says so" says "$T/out" "tokens.json: body (Test Sans) has no italic"
+FONT_CHARS="$LATIN" FONT_ITALIC=1 font "$ID/fonts/test/Test-Italic.ttf" "Test Sans"; brand type
+check "an italic file beside it passes the italic check" quiet_about "$T/out" "no italic"
+fresh; FONT_CHARS="$LATIN" ofl_font "Test Sans"; role body "Test Sans" fonts/test OFL-1.1; tweak "t['languages'] = ['pt']"
+FONT_CHARS="$LATIN" FONT_ITAL_AXIS=1 font "$ID/fonts/test/Test-Regular.ttf" "Test Sans" 0 "" "" variable; brand type
+check "an italic axis passes the italic check" quiet_about "$T/out" "no italic"
+fresh; FONT_CHARS="$LATIN" ofl_font "Test Sans"; role body "Test Sans" fonts/test OFL-1.1; tweak "t['languages'] = ['pt']"
+tweak "t['type']['fonts']['body']['italic'] = True"; brand type
+check "tokens.json claiming an italic does not make one" says "$T/out" "has no italic"
+tweak "t['accepted'] = [{'check': 'type:body:italic', 'value': 'Test Sans', 'reason': 'No italics; emphasis in bold.', 'by': 'Alex', 'date': '2026-10-28'}]"; brand type
+check "the founder may keep a body face without an italic" code 0
+check "and it is reported as accepted with her reason" says_all "$T/out" "body (Test Sans) has no italic" "accepted" "emphasis in bold"
+tweak "t['type']['fonts']['body']['family'] = 'Test Sans'; t['accepted'][0]['value'] = 'Other Sans'"; brand type
+check "an exception for another family does not cover it: stale" says "$T/out" "stale"
+fresh; FONT_CHARS="$LATIN" ofl_font "Test Sans"; role heading "Test Sans" fonts/test OFL-1.1; tweak "t['languages'] = ['pt']"; brand type
+check "only the body face needs an italic" code 0
+brand check
+check "check runs the foundations and the type checks too" says_all "$T/out" "foundations" "Test Sans"
+fresh
 
 exit "$fail"
