@@ -386,6 +386,7 @@ def run(company, candidates, resvg, choose):
             if i not in facts:
                 raise Refused(f"the face {i} is not in the fonts' facts: run brand.sh fonts with it first")
             faces.append(Face(company, facts[i]))
+    picked = resolve_choice(company, choose, alts, faces) if choose else None
     pals = colours_of(company)
     images, marks, notes, big = {}, {}, {}, {}
     with tempfile.TemporaryDirectory() as work:
@@ -427,11 +428,12 @@ def run(company, candidates, resvg, choose):
             for f in (faces or [None]):
                 for n in notes[a["id"]][f.id if f else "none"]:
                     print(f"note: {a['id']} with {f.family}: {n}")
-        if choose:
-            write_choice(company, choose, alts, faces, pals, big, name)
+        if picked:
+            write_choice(company, picked, pals, big, name)
 
 
-def write_choice(company, choose, alts, faces, pals, big, name):
+def resolve_choice(company, choose, alts, faces):
+    """The alternative and face --choose names, or a refusal; checked before anything is rendered."""
     existing = choicepage.saved_choice(company, "logo") or {}
     if choose == "saved":
         picked = existing.get("choice") or {}
@@ -447,6 +449,11 @@ def write_choice(company, choose, alts, faces, pals, big, name):
         raise Refused(f"the alternative {alt_id} has lettering: choose it with a face, {alt_id}:FACE")
     if face_id and face is None and alt["lettering"]:
         raise Refused(f"the face {face_id} is not in the candidates file")
+    return alt, face, existing
+
+
+def write_choice(company, picked, pals, big, name):
+    alt, face, existing = picked
     # an alternative without lettering is the same whatever face the picker holds
     key = face.id if face else next(k for (a, k, _) in big if a == alt["id"])
     source = os.path.join(company, IDENTITY, "logo", "source")

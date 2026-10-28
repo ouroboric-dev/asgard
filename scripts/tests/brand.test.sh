@@ -8,6 +8,8 @@ BRAND="$HERE/../brand.sh"
 T="$(mktemp -d)"
 trap 'rm -rf -- "$T"' EXIT
 fail=0
+# SHARD=a,b runs only those sections (CI runs one job for each); unset runs them all.
+shard() { [ -z "${SHARD:-}" ] || [[ ",$SHARD," == *",$1,"* ]]; }
 check() { local d="$1"; shift; if "$@"; then echo "ok   $d"; else echo "FAIL $d"; fail=1; fi; }
 # shellcheck disable=SC2329 # these run through check
 says() { grep -q -- "$2" "$1"; }
@@ -72,7 +74,122 @@ only_choices_changed() { ! git -C "$1" status --porcelain | grep -qv 'identity/c
 names_pass() { (cd "$1" && .ouroboric/checks/names-check.sh); }
 logo_sums() { (cd "$L" && find . -type f ! -path './source/*' -exec sha256sum {} + | sort); }
 
-# Refusals (5.3.1).
+ID_REL=docs/7-branding/identity
+board() { "$BRAND" board "$C" >"$C.board.out" 2>&1; echo $? >"$C.board.code"; }
+# shellcheck disable=SC2329 # these run through check
+bcode() { [ "$(cat "$C.board.code")" = "$1" ]; }
+# shellcheck disable=SC2329
+board_fresh() { "$BRAND" board --check "$C" >/dev/null 2>&1; }
+# shellcheck disable=SC2329
+company_fresh() { (cd "$C" && python3 .ouroboric/checks/brand.py board-fresh >/dev/null); }
+# shellcheck disable=SC2329
+board_stale() { ! board_fresh; }
+# shellcheck disable=SC2329
+company_stale() { ! company_fresh; }
+# shellcheck disable=SC2329
+says_all() { local f="$1" p; shift; for p in "$@"; do grep -q -- "$p" "$f" || return 1; done; }
+# shellcheck disable=SC2329
+in_order() { local f="$1" last=0 n; shift; for h in "$@"; do
+  n="$(grep -n -m1 -- "^## $h" "$f" | cut -d: -f1)"; [ -n "$n" ] && [ "$n" -gt "$last" ] || return 1; last="$n"; done; }
+# shellcheck disable=SC2329
+brand_check_passes() { (cd "$1" && python3 .ouroboric/checks/brand.py check >"$1.bc.out" 2>&1) || { cat "$1.bc.out"; return 1; }; }
+# shellcheck disable=SC2329
+no_html() { ! grep -vE '^<!--.*-->$' "$1" | grep -qE '<[a-zA-Z/]'; }
+# shellcheck disable=SC2329
+local_only() { ! grep -qE 'https?://|\]\(/|<script' "$1"; }
+# shellcheck disable=SC2329
+board_images_clean() { local f; for f in "$1"/*; do
+  case "$f" in
+    *.png) ;;
+    *.svg) ! grep -o '<[a-zA-Z][a-zA-Z]*' "$f" | sort -u | grep -qvxE '<(svg|path|rect|g|text)' || return 1 ;;
+    *) return 1 ;;
+  esac; done; }
+# shellcheck disable=SC2329
+builds() { (cd "$1" && mkdocs build --strict --quiet --config-file .ouroboric/mkdocs.yml); }
+# shellcheck disable=SC2329
+docs_pass() { (cd "$1" && python3 .ouroboric/checks/docs-check.py); }
+board_sums() { (cd "$C/$ID_REL" && sha256sum board.md board/* applications/*); }
+# shellcheck disable=SC2329
+no_pycache() { [ -z "$(find "$1" -name __pycache__)" ]; }
+# shellcheck disable=SC2329
+no_message_swatch() { ! grep -qE '>(ok|warn|crit)</text>' "$1"; }
+# shellcheck disable=SC2329
+no_message_pairs() { ! grep -qE '^\| (ok|warn|crit) on ' "$1"; }
+# shellcheck disable=SC2329
+one_row_per_token() {   # the logo's colour table: one row for each mode and token
+  [ -z "$(grep -E '^\| (light|dark) \|' "$1" | awk -F'|' '{gsub(/ /, "", $2); gsub(/ /, "", $4); print $2 "/" $4}' | sort | uniq -d)" ]; }
+
+# The fake type library the typography and playground sections share.
+TLIB="$T/typelib"; TDL="$T/typedl"
+ALL="$(python3 -c 'print(",".join("%x" % c for c in range(0x20, 0x7f)))')"
+fx face "$TLIB/plainface" "Plain Face" "PlainFace-Regular.ttf" "$ALL" 400 0 - ofl
+fx face "$TLIB/slantface" "Slant Face" "SlantFace[wght].ttf" "$ALL" 400 0 wght ofl
+fx face "$TLIB/slantface" "Slant Face" "SlantFace-Italic[wght].ttf" "$ALL" 400 1 wght ofl
+fx face "$TLIB/boldface" "Bold Face" "BoldFace-Regular.ttf" "$ALL" 700 0 - ofl ring
+fx face "$TLIB/penface" "Pen Face" "PenFace-Regular.ttf" "$ALL" 400 0 - ofl tall
+fx face "$TLIB/softface" "Soft Face" "SoftFace-Regular.ttf" "$ALL" 400 0 - ofl narrow
+fx face "$TLIB/roundface" "Round Face" "RoundFace-Regular.ttf" "$ALL" 500 0 - ofl ring
+fx face "$TLIB/inkface" "Ink Face" "InkFace-Regular.ttf" "$ALL" 400 0 - ofl narrow
+python3 - "$T/faces.json" "$TLIB" <<'PY'
+import hashlib, json, os, sys
+out, lib = sys.argv[1:]
+def face(i, fam, kind, direction, tier, suits, files):
+    return {"id": i, "family": fam, "dir": i + "face", "kind": kind, "direction": direction, "tier": tier, "voices": ["calm"], "suits": suits,
+            "note": f"{fam} for the test.", "licence": "OFL-1.1",
+            "files": [{"name": n, "sha256": hashlib.sha256(open(os.path.join(lib, i + "face", n), "rb").read()).hexdigest()} for n in files]}
+SANS, SERIF, SCRIPT = ["body", "heading", "ui"], ["body", "heading", "display"], ["wordmark", "display"]
+json.dump({"library": "test", "ref": "0" * 40,
+  "directions": [{"id": "clean", "name": "Clean sans", "text": "Plain and neutral.", "voices": ["calm"], "suits": SANS},
+                 {"id": "book", "name": "Book serif", "text": "Warm and classic.", "voices": ["warm"], "suits": SERIF},
+                 {"id": "pen", "name": "Pen script", "text": "Written by hand.", "voices": ["personal"], "suits": SCRIPT}],
+  "faces": [face("plain", "Plain Face", "sans", "clean", "start", SANS, ["PlainFace-Regular.ttf"]),
+            face("round", "Round Face", "sans", "clean", "start", SANS, ["RoundFace-Regular.ttf"]),
+            face("slant", "Slant Face", "serif", "book", "start", SERIF + ["ui"], ["SlantFace[wght].ttf", "SlantFace-Italic[wght].ttf"]),
+            face("bold", "Bold Face", "serif", "book", "start", SERIF, ["BoldFace-Regular.ttf"]),
+            face("soft", "Soft Face", "serif", "book", "deeper", SERIF, ["SoftFace-Regular.ttf"]),
+            face("pen", "Pen Face", "script", "pen", "start", SCRIPT, ["PenFace-Regular.ttf"]),
+            face("ink", "Ink Face", "script", "pen", "start", SCRIPT, ["InkFace-Regular.ttf"])]}, open(out, "w"))
+PY
+python3 - "$T/type-cands.json" <<'PY'
+import json, sys
+json.dump({"languages": ["en"], "sample": {"name": "Example Studio", "tagline": "Portraits that feel like you", "about": "We photograph families the way they are, laughing and a little messy."}}, open(sys.argv[1], "w"))
+PY
+check_page() { "$BRAND" check-page "$C" "$1" >"$C.cp.out" 2>&1; }
+
+# The logo proposals' fake library and candidates, shared by the proposals and the choice sections.
+PLIB="$T/proplib"; PDL="$T/propdl"
+LET="$(python3 -c 'print(",".join("%x" % c for c in list(range(0x41, 0x5b)) + list(range(0x61, 0x7b)) + [0x20]))')"
+fx face "$PLIB/plainface" "Plain Face" "PlainFace-Regular.ttf" "$LET" 400 0 - ofl
+fx face "$PLIB/ringface" "Ring Face" "RingFace-Regular.ttf" "$LET" 400 0 - ofl ring
+fx face "$PLIB/narrowface" "Narrow Face" "NarrowFace-Regular.ttf" "$LET" 400 0 - ofl narrow
+fx face "$PLIB/scriptface" "Script Face" "ScriptFace-Regular.ttf" "$LET" 400 0 - ofl tall
+fx face "$PLIB/partface" "Part Face" "PartFace-Regular.ttf" "41,42,43" 400 0 - ofl
+python3 - "$T/prop-fonts.json" <<'PY'
+import json, sys
+def c(i, name, group, **kw):
+    return {"id": i, "family": name, "dir": i + "face", "files": [name.replace(" ", "") + "-Regular.ttf"], "group": group, **kw}
+json.dump({"languages": ["en"], "candidates": [c("plain", "Plain Face", "serious"), c("ring", "Ring Face", "serious"),
+    c("narrow", "Narrow Face", "serious"), c("script", "Script Face", "stylised", joined=True),
+    c("part", "Part Face", "stylised")]}, open(sys.argv[1], "w"))
+PY
+python3 - "$T/prop.json" <<'PY'
+import json, sys
+json.dump({"name": "Example Studio", "faces": ["plain", "ring", "narrow", "script", "part"], "alternatives": [
+    {"id": "drawn", "name": "As drawn", "strength": "Keeps the concept exactly", "risk": "The lettering is not a real typeface",
+     "fails_at": 24, "image": "docs/7-branding/identity/choices/concept/wide.png", "mark": "docs/7-branding/identity/choices/concept/mark.png", "lettering": False},
+    {"id": "named", "name": "Mark beside the name", "strength": "The mark works alone as the favicon",
+     "risk": "The name is long at small sizes", "fails_at": 32, "mark": "docs/7-branding/identity/choices/concept/mark.png",
+     "lettering": True, "layout": "beside", "symbol_in": "o"},
+    {"id": "swap", "name": "Mark above the name", "strength": "Compact", "risk": "A letter is replaced by the mark",
+     "mark": "docs/7-branding/identity/choices/concept/mark.png", "lettering": True, "layout": "above", "replaces_letter": "i",
+     "poor_fit": {"ring": "The agent's own note about this pairing"}}]}, open(sys.argv[1], "w"))
+PY
+# shellcheck disable=SC2329
+proposals() { ASGARD_FONTS_DIR="$PDL" "$BRAND" logo-proposals "$@" >"$C.prop.out" 2>&1; echo $? >"$C.prop.code"; }
+# shellcheck disable=SC2329
+ppcode() { [ "$(cat "$C.prop.code")" = "$1" ]; }
+
+if shard tools; then
 use none; logo
 check "logo refuses a company with no logo PNG, with code 2" lcode 2
 check "and says where to put it" says "$C.out" "logo/source/logo.png"
@@ -139,51 +256,6 @@ check "favicon.ico holds 16, 32 and 48 pixels (5.3.13)" fx ico "$L/favicon.ico"
 check "the icons are opaque, with the mark inside the safe-zone circle (5.3.14)" fx icons "$L"
 
 # The brand board (spec §5.4, with the founder's answers of 2026-10-27: plain Markdown and generated images).
-ID_REL=docs/7-branding/identity
-board() { "$BRAND" board "$C" >"$C.board.out" 2>&1; echo $? >"$C.board.code"; }
-# shellcheck disable=SC2329 # these run through check
-bcode() { [ "$(cat "$C.board.code")" = "$1" ]; }
-# shellcheck disable=SC2329
-board_fresh() { "$BRAND" board --check "$C" >/dev/null 2>&1; }
-# shellcheck disable=SC2329
-company_fresh() { (cd "$C" && python3 .ouroboric/checks/brand.py board-fresh >/dev/null); }
-# shellcheck disable=SC2329
-board_stale() { ! board_fresh; }
-# shellcheck disable=SC2329
-company_stale() { ! company_fresh; }
-# shellcheck disable=SC2329
-says_all() { local f="$1" p; shift; for p in "$@"; do grep -q -- "$p" "$f" || return 1; done; }
-# shellcheck disable=SC2329
-in_order() { local f="$1" last=0 n; shift; for h in "$@"; do
-  n="$(grep -n -m1 -- "^## $h" "$f" | cut -d: -f1)"; [ -n "$n" ] && [ "$n" -gt "$last" ] || return 1; last="$n"; done; }
-# shellcheck disable=SC2329
-brand_check_passes() { (cd "$1" && python3 .ouroboric/checks/brand.py check >"$1.bc.out" 2>&1); }
-# shellcheck disable=SC2329
-no_html() { ! grep -vE '^<!--.*-->$' "$1" | grep -qE '<[a-zA-Z/]'; }
-# shellcheck disable=SC2329
-local_only() { ! grep -qE 'https?://|\]\(/|<script' "$1"; }
-# shellcheck disable=SC2329
-board_images_clean() { local f; for f in "$1"/*; do
-  case "$f" in
-    *.png) ;;
-    *.svg) ! grep -o '<[a-zA-Z][a-zA-Z]*' "$f" | sort -u | grep -qvxE '<(svg|path|rect|g|text)' || return 1 ;;
-    *) return 1 ;;
-  esac; done; }
-# shellcheck disable=SC2329
-builds() { (cd "$1" && mkdocs build --strict --quiet --config-file .ouroboric/mkdocs.yml); }
-# shellcheck disable=SC2329
-docs_pass() { (cd "$1" && python3 .ouroboric/checks/docs-check.py); }
-board_sums() { (cd "$C/$ID_REL" && sha256sum board.md board/* applications/*); }
-# shellcheck disable=SC2329
-no_pycache() { [ -z "$(find "$1" -name __pycache__)" ]; }
-# shellcheck disable=SC2329
-no_message_swatch() { ! grep -qE '>(ok|warn|crit)</text>' "$1"; }
-# shellcheck disable=SC2329
-no_message_pairs() { ! grep -qE '^\| (ok|warn|crit) on ' "$1"; }
-# shellcheck disable=SC2329
-one_row_per_token() {   # the logo's colour table: one row for each mode and token
-  [ -z "$(grep -E '^\| (light|dark) \|' "$1" | awk -F'|' '{gsub(/ /, "", $2); gsub(/ /, "", $4); print $2 "/" $4}' | sort | uniq -d)" ]; }
-
 use bempty; board
 check "board runs on a company with nothing chosen yet" bcode 0
 check "and writes the board with its five parts in order (5.4.1)" \
@@ -297,7 +369,8 @@ use bnone; board
 check "a board with no logo and no exceptions says so, and still writes" bcode 0
 check "no exception is stated" says "$C/$ID_REL/board.md" "No exception is kept"
 
-# The typography tool (design system tasks DS-T05): candidate faces fetched from the library, their facts read from the
+fi
+if shard fonts; then
 # files. The library is a folder here, reached through file://; nothing is fetched from the network.
 use fonts1
 LIB="$T/library"; DL="$T/downloads"; FACTS="$C/docs/7-branding/identity/choices/fonts-facts.json"
@@ -474,42 +547,11 @@ check "a mark is enlarged to at least 2400 pixels on its short side" fx short "$
 cp "$PREP/arcs-mark.png" "$SRC/logo.png"; logo
 check "the same mark, prepared, traces faithfully" trace 't["modes"]["light"]["mismatch"] <= 0.01'
 
-# Logo proposals (design system tasks DS-T07): the review page, and the chosen design as source PNGs.
+fi
+if shard proposals; then
 use props; PD="$C/docs/7-branding/identity/choices"; PAGE="$PD/logo-proposals.html"; FACTSF="$PD/fonts-facts.json"
-PLIB="$T/proplib"; PDL="$T/propdl"
-LET="$(python3 -c 'print(",".join("%x" % c for c in list(range(0x41, 0x5b)) + list(range(0x61, 0x7b)) + [0x20]))')"
-fx face "$PLIB/plainface" "Plain Face" "PlainFace-Regular.ttf" "$LET" 400 0 - ofl
-fx face "$PLIB/ringface" "Ring Face" "RingFace-Regular.ttf" "$LET" 400 0 - ofl ring
-fx face "$PLIB/narrowface" "Narrow Face" "NarrowFace-Regular.ttf" "$LET" 400 0 - ofl narrow
-fx face "$PLIB/scriptface" "Script Face" "ScriptFace-Regular.ttf" "$LET" 400 0 - ofl tall
-fx face "$PLIB/partface" "Part Face" "PartFace-Regular.ttf" "41,42,43" 400 0 - ofl
-python3 - "$T/prop-fonts.json" <<'PY'
-import json, sys
-def c(i, name, group, **kw):
-    return {"id": i, "family": name, "dir": i + "face", "files": [name.replace(" ", "") + "-Regular.ttf"], "group": group, **kw}
-json.dump({"languages": ["en"], "candidates": [c("plain", "Plain Face", "serious"), c("ring", "Ring Face", "serious"),
-    c("narrow", "Narrow Face", "serious"), c("script", "Script Face", "stylised", joined=True),
-    c("part", "Part Face", "stylised")]}, open(sys.argv[1], "w"))
-PY
 ASGARD_FONTS_BASE="file://$PLIB" ASGARD_FONTS_DIR="$PDL" "$BRAND" fonts "$C" "$T/prop-fonts.json" >/dev/null 2>&1
 mkdir -p "$PD/concept"; fx draw mark "$PD/concept/mark.png"; fx draw wide "$PD/concept/wide.png"
-python3 - "$T/prop.json" <<'PY'
-import json, sys
-json.dump({"name": "Example Studio", "faces": ["plain", "ring", "narrow", "script", "part"], "alternatives": [
-    {"id": "drawn", "name": "As drawn", "strength": "Keeps the concept exactly", "risk": "The lettering is not a real typeface",
-     "fails_at": 24, "image": "docs/7-branding/identity/choices/concept/wide.png", "mark": "docs/7-branding/identity/choices/concept/mark.png", "lettering": False},
-    {"id": "named", "name": "Mark beside the name", "strength": "The mark works alone as the favicon",
-     "risk": "The name is long at small sizes", "fails_at": 32, "mark": "docs/7-branding/identity/choices/concept/mark.png",
-     "lettering": True, "layout": "beside", "symbol_in": "o"},
-    {"id": "swap", "name": "Mark above the name", "strength": "Compact", "risk": "A letter is replaced by the mark",
-     "mark": "docs/7-branding/identity/choices/concept/mark.png", "lettering": True, "layout": "above", "replaces_letter": "i",
-     "poor_fit": {"ring": "The agent's own note about this pairing"}}]}, open(sys.argv[1], "w"))
-PY
-# shellcheck disable=SC2329
-check_page() { "$BRAND" check-page "$C" "$1" >"$C.cp.out" 2>&1; }
-proposals() { ASGARD_FONTS_DIR="$PDL" "$BRAND" logo-proposals "$@" >"$C.prop.out" 2>&1; echo $? >"$C.prop.code"; }
-# shellcheck disable=SC2329
-ppcode() { [ "$(cat "$C.prop.code")" = "$1" ]; }
 proposals "$C" "$T/prop.json"
 check "logo-proposals writes the review page" ppcode 0
 check "in the choices folder" test -f "$PAGE"
@@ -567,7 +609,8 @@ PY
 proposals "$C" "$T/prop-noname.json"
 check "an alternative without its strength is refused" ppcode 2
 check "logo-proposals without a candidates file is refused" [ "$("$BRAND" logo-proposals "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
-
+fi
+if shard choice; then
 # The chosen design becomes the logo's source PNGs, in the palette's text and accent colours.
 use props2; PD="$C/docs/7-branding/identity/choices"; PAGE="$PD/logo-proposals.html"; TK="$C/$ID_REL/tokens.json"; fx palette "$TK"
 mkdir -p "$PD/concept"; fx draw mark "$PD/concept/mark.png"; fx draw wide "$PD/concept/wide.png"
@@ -596,6 +639,7 @@ check "and so is a face that does not" ppcode 2
 proposals "$C" "$T/prop.json" --choose saved
 check "--choose saved with nothing saved is refused" ppcode 2
 check "and says what is missing" says "$C.prop.out" "no choice saved"
+check "a refused --choose refuses before rendering anything" lacks_text "$C.prop.out" "review page is written"
 python3 - "$PD/logo.json" <<'PY'
 import json, sys
 json.dump({"step": "logo", "choice": {"alternative": "swap", "face": "ring"}, "reason": "Calm and compact", "date": "2026-10-28"}, open(sys.argv[1], "w"))
@@ -611,7 +655,8 @@ check "--choose saved applies the saved choice" ppcode 0
 check "and records the chosen proposal beside her reason" \
   fx json "$PD/logo.json" 'd["alternative"] == "swap" and d["face"] == "ring" and d["reason"] == "Calm and compact" and d["choice"]["face"] == "ring"'
 
-# The choice pages (design system tasks DS-T12): the four rules of spec §5.7, and the local server that saves a choice.
+fi
+if shard pages; then
 use pages; CH="$C/$ID_REL/choices"; mkdir -p "$CH"
 FONTURI="$(fx fontdata)"
 pagecheck() { "$BRAND" check-page "$C" "$1" >"$C.page.out" 2>&1; echo $? >"$C.page.code"; }
@@ -734,40 +779,7 @@ check "and says so" says "$C.cp.out" "reopens on the saved choice"
 
 # The typography pages (design system tasks DS-T15): width first (a direction at a time), then depth in the directions she
 # likes, then the roles. Each page is built from what the one before saved.
-use typage; CH="$C/$ID_REL/choices"; TLIB="$T/typelib"; TDL="$T/typedl"
-ALL="$(python3 -c 'print(",".join("%x" % c for c in range(0x20, 0x7f)))')"
-fx face "$TLIB/plainface" "Plain Face" "PlainFace-Regular.ttf" "$ALL" 400 0 - ofl
-fx face "$TLIB/slantface" "Slant Face" "SlantFace[wght].ttf" "$ALL" 400 0 wght ofl
-fx face "$TLIB/slantface" "Slant Face" "SlantFace-Italic[wght].ttf" "$ALL" 400 1 wght ofl
-fx face "$TLIB/boldface" "Bold Face" "BoldFace-Regular.ttf" "$ALL" 700 0 - ofl ring
-fx face "$TLIB/penface" "Pen Face" "PenFace-Regular.ttf" "$ALL" 400 0 - ofl tall
-fx face "$TLIB/softface" "Soft Face" "SoftFace-Regular.ttf" "$ALL" 400 0 - ofl narrow
-fx face "$TLIB/roundface" "Round Face" "RoundFace-Regular.ttf" "$ALL" 500 0 - ofl ring
-fx face "$TLIB/inkface" "Ink Face" "InkFace-Regular.ttf" "$ALL" 400 0 - ofl narrow
-python3 - "$T/faces.json" "$TLIB" <<'PY'
-import hashlib, json, os, sys
-out, lib = sys.argv[1:]
-def face(i, fam, kind, direction, tier, suits, files):
-    return {"id": i, "family": fam, "dir": i + "face", "kind": kind, "direction": direction, "tier": tier, "voices": ["calm"], "suits": suits,
-            "note": f"{fam} for the test.", "licence": "OFL-1.1",
-            "files": [{"name": n, "sha256": hashlib.sha256(open(os.path.join(lib, i + "face", n), "rb").read()).hexdigest()} for n in files]}
-SANS, SERIF, SCRIPT = ["body", "heading", "ui"], ["body", "heading", "display"], ["wordmark", "display"]
-json.dump({"library": "test", "ref": "0" * 40,
-  "directions": [{"id": "clean", "name": "Clean sans", "text": "Plain and neutral.", "voices": ["calm"], "suits": SANS},
-                 {"id": "book", "name": "Book serif", "text": "Warm and classic.", "voices": ["warm"], "suits": SERIF},
-                 {"id": "pen", "name": "Pen script", "text": "Written by hand.", "voices": ["personal"], "suits": SCRIPT}],
-  "faces": [face("plain", "Plain Face", "sans", "clean", "start", SANS, ["PlainFace-Regular.ttf"]),
-            face("round", "Round Face", "sans", "clean", "start", SANS, ["RoundFace-Regular.ttf"]),
-            face("slant", "Slant Face", "serif", "book", "start", SERIF + ["ui"], ["SlantFace[wght].ttf", "SlantFace-Italic[wght].ttf"]),
-            face("bold", "Bold Face", "serif", "book", "start", SERIF, ["BoldFace-Regular.ttf"]),
-            face("soft", "Soft Face", "serif", "book", "deeper", SERIF, ["SoftFace-Regular.ttf"]),
-            face("pen", "Pen Face", "script", "pen", "start", SCRIPT, ["PenFace-Regular.ttf"]),
-            face("ink", "Ink Face", "script", "pen", "start", SCRIPT, ["InkFace-Regular.ttf"])]}, open(out, "w"))
-PY
-python3 - "$T/type-cands.json" <<'PY'
-import json, sys
-json.dump({"languages": ["en"], "sample": {"name": "Example Studio", "tagline": "Portraits that feel like you", "about": "We photograph families the way they are, laughing and a little messy."}}, open(sys.argv[1], "w"))
-PY
+use typage; CH="$C/$ID_REL/choices"
 typage() { ASGARD_FACES="$T/faces.json" ASGARD_FONTS_BASE="file://$TLIB" ASGARD_FONTS_DIR="$TDL" "$BRAND" type-page "$@" >"$C.tp.out" 2>&1; echo $? >"$C.tp.code"; }
 # shellcheck disable=SC2329
 tpcode() { [ "$(cat "$C.tp.code")" = "$1" ]; }
@@ -914,7 +926,8 @@ printf '{"step": "foundations", "choice": {"f-radius": "round", "f-motion": "liv
 check "a saved choice is restored" check_page "$FP"
 check "and says so" says "$C.cp.out" "reopens on the saved choice"
 
-# The reference (design system tasks DS-T13): the design system as products build it, generated from the tokens.
+fi
+if shard playground; then
 use ref; REFD="$C/$ID_REL/reference"; TK="$C/$ID_REL/tokens.json"; fx palette "$TK"; fx font "$TK" "$C/$ID_REL/fonts/test" "Test Serif" ttf; fx draw mark "$SRC/logo.png"
 (cd "$C" && "$PY" -I .ouroboric/checks/brand.py tokens --write >/dev/null); logo
 refp() { "$BRAND" reference "$C" >"$C.ref.out" 2>&1; echo $? >"$C.ref.code"; }
@@ -1087,6 +1100,7 @@ check "playground-apply needs to know who accepts the exceptions" apcode 2
 # shellcheck disable=SC2329
 tools_use_no_trade_words() { ! grep -rniE "book a date|photograph|price card|social post|portrait|wedding|gallery cover" "$HERE/../brand" --include=*.py --include=*.json --include=*.sh | grep -v "faces-source.json\|faces.json" | grep -q .; }
 check "the tools' wording names no trade: no booking, no photographs, no price cards" tools_use_no_trade_words
+fi
 
 echo "end of suite: every check ran"
 exit "$fail"
