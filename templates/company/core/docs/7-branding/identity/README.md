@@ -13,7 +13,7 @@ The design language of {{COMPANY}}: every product's design is built from it, so 
 one look and feel. [tokens.json](tokens.json) is the source the products read; [tokens.css](tokens.css) is its CSS
 form. The [brand board](board.md) shows it all together.
 
-<!-- To write at step 6 (Brand: look). Answers readiness RB-21. The founder approves it at the brand stop, from the brand board. Delete this comment when the section is written. -->
+<!-- To write at step 6 (Brand: look). Answers readiness RB-21 to RB-24. The founder approves it at the brand stop, from the brand board. Delete this comment when the section is written. -->
 
 ## Palette
 
@@ -25,12 +25,28 @@ form. The [brand board](board.md) shows it all together.
 
 ## Typography
 
-<!-- Each font, its role (heading, body, interface), where its licence allows this use, and the type scale. -->
+<!-- Each role (wordmark, display, heading, body, interface): its font, where its licence allows this use, the weights
+it ships, and the reason for the choice. Then the type scale, with its minimum body size. -->
 
 ## Logo
 
 See [logo/](logo/README.md).
 
-## Rules
+## Foundations
 
-<!-- Spacing, corners, shadows, motion: the few rules that make a page look like the company. -->
+<!-- Spacing, corner radius, elevation, motion (and what reduced motion does), breakpoints, the focus indicator and the
+smallest touch target: each value, and why it was chosen. They are the values in tokens.json. -->
+
+## Components
+
+<!-- The variant chosen for each component (button, link, field, card, message, navigation, image, icon) and how it
+looks in light and dark. -->
+
+## Accepted exceptions
+
+<!-- A check the founder chose to keep failing: the check, her reason, who and when. Copy each entry from `accepted` in
+tokens.json. None is also an answer. -->
+
+## Applications
+
+<!-- The first places the brand appears: the social profile picture, the link preview image, the email signature. -->

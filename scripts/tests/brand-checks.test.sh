@@ -268,6 +268,47 @@ check "with font-display: swap" says "$ID/fonts.css" "font-display: swap;"
 sum1="$(sha256sum "$CSS" "$ID/fonts.css")"; brand tokens --write
 check "a second --write gives byte-identical files" [ "$(sha256sum "$CSS" "$ID/fonts.css")" = "$sum1" ]
 check "the pages build strictly with fonts.css" builds "$T/a"
+
+# The foundations (design system tasks DS-T03; spec §5.5): the template holds every key, and tokens.css every variable.
+fresh; brand tokens --write
+check "the foundations: a fresh scaffold's generated files are up to date" code 0
+# shellcheck disable=SC2329 # runs through check
+has_keys() {
+  python3 - "$TOKENS" <<'PY'
+import json, sys
+t = json.load(open(sys.argv[1]))
+need = ["space", "radius", "elevation", "motion", "focus", "target", "breakpoints", "components", "accepted", "languages"]
+missing = [k for k in need if k not in t]
+roles = t["type"]["fonts"]
+missing += [f"type.fonts.{r}" for r in ("wordmark", "display", "heading", "body", "ui") if r not in roles]
+missing += [f"type.scale.{k}" for k in ("base", "ratio", "minimum", "sizes", "lineHeight") if k not in t["type"]["scale"]]
+sys.exit(1 if missing else 0)
+PY
+}
+check "the template's tokens.json holds every key of the token contract" has_keys
+check "tokens.css carries the spacing, radius and shadow variables" says_all "$CSS" \
+  "--space-1: 8px;" "--space-7: 64px;" "--radius-sm:" "--radius-md:" "--radius-lg:" "--radius-button:" "--shadow-card:" "--shadow-overlay:"
+check "the motion, focus, target and breakpoint variables" says_all "$CSS" \
+  "--motion-distance: 16px;" "--motion-duration: 240ms;" "--motion-easing: cubic-bezier" \
+  "--focus-color: var(--color-accent);" "--focus-width: 2px;" "--focus-offset: 2px;" "--target: 44px;" "--bp-1: 640px;" "--bp-3: 1280px;"
+check "the type scale variables" says_all "$CSS" "--text-body: 16px;" "--text-small:" "--text-display:" "--leading-body: 1.5;" "--leading-heading:"
+check "reduced motion removes the distance and the duration" says_all "$CSS" "prefers-reduced-motion: reduce" "--motion-duration: 0ms;"
+python3 - "$TOKENS" <<'PY'
+import json, sys
+t = json.load(open(sys.argv[1])); t["space"] = [4, 8]; t["radius"]["lg"] = 12; json.dump(t, open(sys.argv[1], "w"), indent=2)
+PY
+brand tokens
+check "a foundation change makes tokens.css stale" code 1
+brand tokens --write
+check "and --write brings only the changed values: two spacing steps, the new radius" says_all "$CSS" "--space-2: 8px;" "--radius-lg: 12px;"
+check "a spacing step that is gone is not left behind" quiet_about "$CSS" "--space-3:"
+for r in wordmark display heading body ui; do
+  fresh; ofl_font "Test Serif"; role "$r" "Test Serif" fonts/test OFL-1.1; brand tokens --write
+  check "the $r role gets a font stack" says "$CSS" "--font-$r: \"Test Serif\", serif;"
+done
+check "the identity page has the foundations, components, accepted exceptions and applications sections" \
+  says_all "$T/a/docs/7-branding/identity/README.md" "^## Foundations" "^## Components" "^## Accepted exceptions" "^## Applications"
+fresh
 fresh; mkdir -p "$ID/fonts/test"; printf '%s\n' "$OFL" >"$ID/fonts/test/OFL.txt"
 font "$ID/fonts/test/Test-Variable.ttf" "Test Serif" 0 "" "" variable; role heading "Test Serif" fonts/test OFL-1.1
 brand tokens --write
