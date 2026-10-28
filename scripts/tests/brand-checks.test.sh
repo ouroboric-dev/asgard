@@ -509,4 +509,33 @@ check "a variable font keeps its weight axis in the WOFF2" \
 check "and fonts.css gives its range" says "$ID/fonts.css" 'font-weight: 100 900;'
 fresh
 
+# The component recipes' rules (design system tasks DS-T11): what a variant needs from the palette.
+fresh; palette "${GOOD[@]}"; brand components
+check "components: the template's variants on a good palette pass" code 0
+fresh; palette "${GOOD[@]}"; tweak "t['components']['button'] = 'soft'"; brand components
+check "a soft button whose accent text reads on its tint passes" code 0
+palette "${GOOD[@]}" light.accent-text=#6FA0E8; tweak "t['components']['button'] = 'soft'"; brand components
+check "a soft button whose accent text does not read on its tint fails" code 1
+check "and says so, with the mode and the ratio" says "$T/out" "tokens.json: light: the soft button's accent text on its tint is [0-9.]*:1, under the minimum 4.5:1"
+palette "${GOOD[@]}" light.accent-text=#6FA0E8; tweak "t['components']['button'] = 'outlined'"; brand components
+check "an outlined button's accent text must read on the background" says "$T/out" "light: the outlined button's accent text on the background is"
+palette "${GOOD[@]}" light.accent-text=#6FA0E8; brand components
+check "a filled button asks nothing more: its pair is already in the palette check" code 0
+palette "${GOOD[@]}" light.accent-text=#1B2A4A; tweak "t['components']['link'] = 'colour'"; brand components
+check "a link with no underline must differ from the text by 3:1 (WCAG 1.4.1)" says "$T/out" "light: a link without an underline differs from the text by"
+tweak "t['components']['link'] = 'underlined'"; brand components
+check "an underlined link needs no such difference" code 0
+palette "${GOOD[@]}" light.crit=#E05050; tweak "t['components']['message'] = 'tint'"; brand components
+check "a tinted message's colour must read on its tint" says "$T/out" "light: the crit message on its tint is"
+tweak "t['components']['message'] = 'bar'"; brand components
+check "a message with a side bar has no tint to check" code 0
+palette "${GOOD[@]}" light.accent-text=#1B2A4A; tweak "t['components']['link'] = 'colour'; t['accepted'] = [{'check': 'components:link:light', 'value': '#1B2A4A/#1A1A1A', 'reason': 'Underline added by hand.', 'by': 'Alex', 'date': '2026-10-28'}, {'check': 'components:link:dark', 'value': '#6EA8FE/#EDEDED', 'reason': 'Underline added by hand.', 'by': 'Alex', 'date': '2026-10-28'}]"; brand components
+check "a failing component rule can be accepted, with her reason" code 0
+check "and is reported as accepted" says "$T/out" "accepted: Underline added by hand."
+fresh; brand components
+check "with no palette set there is nothing to check" code 0
+fresh; palette "${GOOD[@]}"; brand check
+check "check runs the component rules too" says "$T/out" "components"
+fresh
+
 exit "$fail"

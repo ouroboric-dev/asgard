@@ -5,6 +5,7 @@
     python3 .ouroboric/checks/brand.py fonts [--json]      the licence evidence of each font the company ships
     python3 .ouroboric/checks/brand.py foundations         the foundations are set and reach their minimums
     python3 .ouroboric/checks/brand.py type                the shipped fonts: glyphs, weights and the body face's italic
+    python3 .ouroboric/checks/brand.py components          what the chosen component variants need from the palette
     python3 .ouroboric/checks/brand.py accepted            the accepted exceptions are complete
     python3 .ouroboric/checks/brand.py tokens [--write]    tokens.css and fonts.css from tokens.json; fail when stale
     python3 .ouroboric/checks/brand.py board-fresh         the brand board matches its inputs
@@ -459,6 +460,57 @@ def foundations():
     return 1 if findings else 0
 
 
+def mix(a, b, pct):
+    """The colour `a` at `pct` percent over `b`, as #RRGGBB."""
+    ca = [int(a[i:i + 2], 16) for i in (1, 3, 5)]
+    cb = [int(b[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#%02X%02X%02X" % tuple(round(x * pct / 100 + y * (100 - pct) / 100) for x, y in zip(ca, cb))
+
+
+def components():
+    """What a component variant needs from the palette: the recipes of the token contract use tints and plain text
+    colours that the palette pairs do not cover. Link text without an underline must differ from the text by 3:1
+    (WCAG 2.2 SC 1.4.1)."""
+    tokens = load_tokens()
+    findings, report = [], []
+    chosen = tokens.get("components") if isinstance(tokens.get("components"), dict) else {}
+    seen = False
+    for mode in ("light", "dark"):
+        p = {k: v for k, v in (tokens.get(mode) or {}).items() if isinstance(v, str) and HEX.match(v)}
+        if not all(k in p for k in ("bg", "text", "accent", "accent-text")):
+            continue
+        seen = True
+
+        def low(check_id, fg, bg, minimum, text):
+            r = ratio(fg, bg)
+            if r < minimum:
+                judge(tokens, check_id, f"{fg.upper()}/{bg.upper()}", f"{mode}: {text} {shown(r)}, under the minimum {minimum:g}:1",
+                      findings, report)
+
+        if chosen.get("button") == "soft":
+            low(f"components:button:soft:{mode}", p["accent-text"], mix(p["accent"], p["bg"], 16), 4.5,
+                "the soft button's accent text on its tint is")
+        if chosen.get("button") == "outlined":
+            low(f"components:button:outlined:{mode}", p["accent-text"], p["bg"], 4.5,
+                "the outlined button's accent text on the background is")
+        if chosen.get("link") == "colour":
+            low(f"components:link:{mode}", p["accent-text"], p["text"], 3.0, "a link without an underline differs from the text by")
+        if chosen.get("message") == "tint":
+            for k in ("ok", "warn", "crit"):
+                if k in p:
+                    low(f"components:message:{k}:{mode}", p[k], mix(p[k], p["bg"], 10), 4.5, f"the {k} message on its tint is")
+    if not seen:
+        print("The palette is not set yet: nothing to check.")
+        return 0
+    for line in report:
+        print(line)
+    for line in findings:
+        print(line)
+    if not findings:
+        print("The chosen components read on the palette.")
+    return 1 if findings else 0
+
+
 TYPOGRAPHY = "\u2019\u201c\u201d\u2013\u2014\u2026\u20ac"  # ’ “ ” – — … €
 LANGUAGE_LETTERS = {
     "en": "",
@@ -840,6 +892,8 @@ def main(argv):
             return foundations()
         if command == "type":
             return type_checks()
+        if command == "components":
+            return components()
         if command == "accepted":
             return accepted()
         if command == "tokens":
@@ -847,13 +901,13 @@ def main(argv):
         if command == "board-fresh":
             return board_fresh()
         if command == "check":
-            code = max(contrast(), fonts(), foundations(), type_checks(), generated(), board_fresh(), accepted())
+            code = max(contrast(), fonts(), foundations(), type_checks(), components(), generated(), board_fresh(), accepted())
             unused_exceptions()
             return code
     except CannotRun as e:
         print(e)
         return 2
-    print("usage: brand.py contrast [--json] | fonts [--json] | foundations | type | accepted | tokens [--write] | "
+    print("usage: brand.py contrast [--json] | fonts [--json] | foundations | type | components | accepted | tokens [--write] | "
           "board-fresh | check", file=sys.stderr)
     return 2
 
