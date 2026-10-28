@@ -25,6 +25,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 syst
 main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; }
 h1 { font-size: 1.5rem; margin: 0 0 4px; } h2 { font-size: 1.1rem; margin: 0 0 4px; } h3 { font-size: .95rem; margin: 16px 0 4px; }
 p.lead { color: var(--muted); margin: 0 0 24px; max-width: 70ch; }
+[hidden] { display: none !important; }
 fieldset { border: 0; padding: 0; margin: 0; }
 .save { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 32px; display: grid; gap: 8px; max-width: 70ch; }
 .save textarea { width: 100%; box-sizing: border-box; font: inherit; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }

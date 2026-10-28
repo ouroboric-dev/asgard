@@ -49,7 +49,7 @@ FINGERPRINT_JS = """() => {
   const props = ["color", "background-color", "background-image", "font-family", "font-size", "font-weight", "font-style",
     "letter-spacing", "line-height", "border-top-width", "border-top-style", "border-top-color", "border-radius",
     "box-shadow", "opacity", "display", "margin-top", "padding-top", "gap", "transform", "text-decoration-line",
-    "outline-style", "filter", "grid-template-columns"];
+    "outline-style", "outline-width", "outline-offset", "outline-color", "min-height", "filter", "grid-template-columns"];
   const out = [];
   [root, ...root.querySelectorAll("*")].forEach(el => {
     const cs = getComputedStyle(el);
