@@ -3,11 +3,20 @@
 
     python3 .ouroboric/checks/brand.py contrast [--json]   every text and shape pair, in light and dark mode
     python3 .ouroboric/checks/brand.py fonts [--json]      the licence evidence of each font the company ships
+    python3 .ouroboric/checks/brand.py foundations         the foundations are set and reach their minimums
+    python3 .ouroboric/checks/brand.py type                the shipped fonts: glyphs, weights and the body face's italic
+    python3 .ouroboric/checks/brand.py accepted            the accepted exceptions are complete
     python3 .ouroboric/checks/brand.py tokens [--write]    tokens.css and fonts.css from tokens.json; fail when stale
     python3 .ouroboric/checks/brand.py board-fresh         the brand board matches its inputs
     python3 .ouroboric/checks/brand.py check               every brand check; run.sh runs this
 
-The contrast check needs only the standard library; the font check reads font files with fontTools.
+The contrast check needs only the standard library; the font checks read font files with fontTools.
+
+A failure the founder keeps is an accepted exception: an entry of `accepted` in tokens.json with the check's id, the
+value that fails, her reason, who and when. A failure whose id and value match is reported as accepted and does not
+fail the check. An entry whose value no longer matches is stale: the check fails again. The ids are
+`contrast:<mode>:<fg>/<bg>`, `type:<role>:glyphs`, `type:<role>:weights`, `type:body:italic`, `type:body:size`,
+`type:scale:minimum`, `type:body:leading`, `focus:width`, `focus:<mode>:<bg>` and `target`.
 
 Each finding prints as `path: what is wrong`. Exit codes: 0 when every check passes, 1 when a check has a finding,
 2 when a check cannot run (tokens.json is not valid JSON).
@@ -79,6 +88,59 @@ def load_tokens():
         raise CannotRun(f"{TOKENS}: cannot read it as JSON ({e})")
 
 
+ACCEPTED_FIELDS = ("check", "value", "reason", "by", "date")
+USED = set()
+
+
+def accepted_entries(tokens):
+    entries = tokens.get("accepted")
+    return [e for e in entries if isinstance(e, dict)] if isinstance(entries, list) else []
+
+
+def judge(tokens, check_id, value, message, findings, report):
+    """Record a failed check: as accepted when an entry matches its id and value, as stale when an entry for the id
+    has another value, else as a finding. `message` has no path; the finding gets TOKENS in front of it."""
+    value = str(value)
+    same = [e for e in accepted_entries(tokens) if e.get("check") == check_id]
+    for e in same:
+        if str(e.get("value")) == value:
+            USED.add(id(e))
+            report.append(f"{TOKENS}: {message}: accepted: {e.get('reason')} ({e.get('by')}, {e.get('date')})")
+            return False
+    stale = ""
+    if same:
+        USED.update(id(e) for e in same)
+        stale = f"; the accepted exception for it is stale: it covers {same[0].get('value')}, not {value}"
+    findings.append(f"{TOKENS}: {message}{stale}")
+    return True
+
+
+def accepted():
+    tokens = load_tokens()
+    findings = []
+    entries = tokens.get("accepted")
+    if entries is not None and not isinstance(entries, list):
+        findings.append(f"{TOKENS}: accepted is not a list")
+        entries = []
+    for i, e in enumerate(entries or []):
+        if not isinstance(e, dict):
+            findings.append(f"{TOKENS}: accepted[{i}]: is not an entry")
+            continue
+        for field in ACCEPTED_FIELDS:
+            if not isinstance(e.get(field), (str, int, float)) or e.get(field) == "":
+                findings.append(f"{TOKENS}: accepted[{i}]: {field} is missing")
+    for line in findings:
+        print(line)
+    return 1 if findings else 0
+
+
+def unused_exceptions():
+    """Entries no check used in this run: the failure they kept is gone. Information, not a failure."""
+    for e in accepted_entries(load_tokens()):
+        if id(e) not in USED:
+            print(f"{TOKENS}: the accepted exception for {e.get('check')} ({e.get('value')}) is no longer needed")
+
+
 def contrast(as_json=False):
     tokens = load_tokens()
     findings, report, rows = [], [], []
@@ -109,19 +171,25 @@ def contrast(as_json=False):
                         result = "reported"
                     else:
                         result = "passes" if r >= minimum else "fails"
+                    kept = None
+                    if result == "fails":
+                        sub = []
+                        message = f"{mode}: {fg} on {bg} is {shown(r)}, under the minimum {minimum:g}:1"
+                        if not judge(tokens, f"contrast:{mode}:{fg}/{bg}",
+                                     f"{usable[mode][fg].upper()}/{usable[mode][bg].upper()}", message, findings, sub):
+                            result, kept = "accepted", sub[0]
                     line = f"{mode}: {fg} on {bg} is {shown(r)}"
                     if minimum is None:
                         line += f", {kind}: no minimum"
                     else:
                         line += f", {kind}, minimum {minimum:g}:1: {result}"
+                        if kept:
+                            line += kept[kept.index(": accepted:") + len(": accepted"):]
                         if kind == "text":
                             line += f"; {'meets' if r >= ENHANCED else 'under'} the enhanced 7:1"
                     report.append(line)
                     rows.append({"mode": mode, "fg": fg, "bg": bg, "kind": kind, "ratio": round(r, 4),
                                  "minimum": minimum, "result": result})
-                    if result == "fails":
-                        findings.append(f"{TOKENS}: {mode}: {fg} on {bg} is {shown(r)}, under the minimum "
-                                        f"{minimum:g}:1")
     brands = sorted({k for p in palettes.values() for k in p if BRAND.match(k)}, key=lambda k: int(k[6:]))
     for key in brands:
         for mode, other in (("light", "dark"), ("dark", "light")):
@@ -267,6 +335,203 @@ def fonts(as_json=False):
     if not as_json:
         print(CLOSING)
     return 1 if findings else 0
+
+
+MIN_BODY, MIN_LEADING, MIN_FOCUS, MIN_FOCUS_CONTRAST, MIN_TARGET = 16, 1.5, 2, 3.0, 24
+SIZES = ("small", "body", "h3", "h2", "h1", "display")
+LEADINGS = ("body", "heading", "display")
+RADII = ("sm", "md", "lg", "button")
+ELEVATIONS = ("card", "overlay")
+
+
+def is_number(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def numbers(v):
+    return isinstance(v, list) and bool(v) and all(is_number(x) for x in v)
+
+
+def missing_foundations(tokens):
+    """The foundation keys that are absent or of the wrong shape, as the names a person reads."""
+    scale = (tokens.get("type") or {}).get("scale") or {}
+    out = []
+
+    def need(name, ok):
+        if not ok:
+            out.append(name)
+
+    def group(name, value, keys, kind):
+        need(name, isinstance(value, dict))
+        if isinstance(value, dict):
+            for k in keys:
+                need(f"{name}.{k}", kind(value.get(k)))
+
+    need("languages", isinstance(tokens.get("languages"), list) and bool(tokens.get("languages")))
+    for k in ("base", "ratio", "minimum"):
+        need(f"type.scale.{k}", is_number(scale.get(k)))
+    group("type.scale.sizes", scale.get("sizes"), SIZES, is_number)
+    group("type.scale.lineHeight", scale.get("lineHeight"), LEADINGS, is_number)
+    need("space", numbers(tokens.get("space")))
+    group("radius", tokens.get("radius"), RADII, is_number)
+    group("elevation", tokens.get("elevation"), ELEVATIONS, lambda v: isinstance(v, str) and v != "")
+    motion = tokens.get("motion")
+    need("motion", isinstance(motion, dict))
+    if isinstance(motion, dict):
+        need("motion.distance", is_number(motion.get("distance")))
+        need("motion.duration", is_number(motion.get("duration")))
+        need("motion.easing", isinstance(motion.get("easing"), str) and motion.get("easing") != "")
+        need("motion.reduced", motion.get("reduced") in ("none", "fade"))
+    focus = tokens.get("focus")
+    need("focus", isinstance(focus, dict))
+    if isinstance(focus, dict):
+        need("focus.role", focus.get("role") in COLOURS)
+        need("focus.width", is_number(focus.get("width")))
+        need("focus.offset", is_number(focus.get("offset")))
+    need("target", is_number(tokens.get("target")))
+    need("breakpoints", numbers(tokens.get("breakpoints")))
+    need("components", isinstance(tokens.get("components"), dict))
+    need("accepted", isinstance(tokens.get("accepted"), list))
+    return out
+
+
+def foundations():
+    tokens = load_tokens()
+    findings, report = [], []
+    absent = missing_foundations(tokens)
+    for name in absent:
+        findings.append(f"{TOKENS}: {name} is missing")
+    scale = (tokens.get("type") or {}).get("scale") or {}
+
+    def minimum(check_id, value, floor, message):
+        if is_number(value) and value < floor:
+            judge(tokens, check_id, f"{value:g}", message, findings, report)
+
+    sizes, leading = scale.get("sizes") or {}, scale.get("lineHeight") or {}
+    if is_number(sizes.get("body")):
+        minimum("type:body:size", sizes["body"], MIN_BODY,
+                f"the body text is {sizes['body']:g} px, under the minimum {MIN_BODY} px")
+    minimum("type:scale:minimum", scale.get("minimum"), MIN_BODY,
+            f"the scale's minimum is {scale.get('minimum', 0):g} px, under the minimum {MIN_BODY} px")
+    minimum("type:body:leading", leading.get("body"), MIN_LEADING,
+            f"the body line height is {leading.get('body', 0):g}, under the minimum {MIN_LEADING:g}")
+    focus = tokens.get("focus") if isinstance(tokens.get("focus"), dict) else {}
+    minimum("focus:width", focus.get("width"), MIN_FOCUS,
+            f"the focus indicator is {focus.get('width', 0):g} px thick, under the minimum {MIN_FOCUS} px")
+    minimum("target", tokens.get("target"), MIN_TARGET,
+            f"the touch target is {tokens.get('target', 0):g} px, under the minimum {MIN_TARGET} px")
+    role = focus.get("role")
+    if role in COLOURS:
+        for mode in ("light", "dark"):
+            palette = tokens.get(mode) or {}
+            fg = palette.get(role)
+            for bg in ("bg", "surface"):
+                other = palette.get(bg)
+                if not all(isinstance(v, str) and HEX.match(v) for v in (fg, other)):
+                    continue
+                r = ratio(fg, other)
+                if r < MIN_FOCUS_CONTRAST:
+                    judge(tokens, f"focus:{mode}:{bg}", f"{fg.upper()}/{other.upper()}",
+                          f"{mode}: the focus colour {role} on {bg} is {shown(r)}, under the minimum "
+                          f"{MIN_FOCUS_CONTRAST:g}:1", findings, report)
+    for line in report:
+        print(line)
+    for line in findings:
+        print(line)
+    if not findings:
+        print("The foundations are set and reach their minimums.")
+    return 1 if findings else 0
+
+
+TYPOGRAPHY = "\u2019\u201c\u201d\u2013\u2014\u2026\u20ac"  # ’ “ ” – — … €
+LANGUAGE_LETTERS = {
+    "en": "",
+    "pt": "áàâãçéêíóôõúüÁÀÂÃÇÉÊÍÓÔÕÚÜ",
+    "es": "áéíñóúüÁÉÍÑÓÚÜ¿¡",
+    "fr": "àâæçéèêëîïôœùûüÿÀÂÆÇÉÈÊËÎÏÔŒÙÛÜŸ",
+    "de": "äöüßÄÖÜ",
+    "it": "àèéìíòóùúÀÈÉÌÒÓÙ",
+    "nl": "éèëïÉ",
+    "sv": "åäöÅÄÖ",
+    "da": "æøåÆØÅ",
+    "nb": "æøåÆØÅ",
+    "fi": "äöåÄÖÅ",
+}
+
+
+def required_characters(language):
+    """The characters a font must cover to set text in the language, or None when the check has no list for it."""
+    letters = LANGUAGE_LETTERS.get(str(language).split("-")[0].lower())
+    if letters is None:
+        return None
+    return list(dict.fromkeys(letters + TYPOGRAPHY + "".join(chr(c) for c in range(0x20, 0x7F))))
+
+
+def font_weights(font):
+    """(low, high) of a variable font's weight axis, else (usWeightClass, usWeightClass)."""
+    if "fvar" in font:
+        for axis in font["fvar"].axes:
+            if axis.axisTag == "wght":
+                return axis.minValue, axis.maxValue
+    w = font["OS/2"].usWeightClass
+    return w, w
+
+
+def font_is_italic(font):
+    if "fvar" in font and any(a.axisTag == "ital" for a in font["fvar"].axes):
+        return True
+    return bool(font["OS/2"].fsSelection & 1) or bool(font["head"].macStyle & 2)
+
+
+def type_checks():
+    tokens = load_tokens()
+    findings, report = [], []
+    languages = tokens.get("languages") if isinstance(tokens.get("languages"), list) else []
+    lists = {}
+    for lang in languages:
+        chars = required_characters(lang)
+        if chars is None:
+            judge(tokens, f"languages:{lang}", lang,
+                  f"the language {lang} has no list of characters in this check, so its glyphs are not verified",
+                  findings, report)
+        else:
+            lists[str(lang)] = chars
+    for role in ROLES:
+        spec = ((tokens.get("type") or {}).get("fonts") or {}).get(role) or {}
+        family, files = spec.get("family"), spec.get("files")
+        if not family or not files:
+            continue
+        folder = os.path.join(IDENTITY, files)
+        if not os.path.isdir(folder):
+            continue
+        label = f"{role} ({family})"
+        opened = [open_font(os.path.join(folder, n)) for n in sorted(os.listdir(folder))
+                  if n.lower().endswith(FONT_FILES)]
+        if not opened:
+            continue
+        for lang, chars in lists.items():
+            covered = [set(f.getBestCmap()) for f in opened]
+            gone = max(([c for c in chars if ord(c) not in cmap] for cmap in covered), key=len)
+            if gone:
+                judge(tokens, f"type:{role}:glyphs", family,
+                      f"{label}: lacks {len(gone)} characters of {lang}, such as {' '.join(gone[:5])}",
+                      findings, report)
+        have = [font_weights(f) for f in opened]
+        ranges = sorted({(lo, hi) for lo, hi in have if lo != hi})
+        statics = sorted({lo for lo, hi in have if lo == hi and not any(a <= lo <= b for a, b in ranges)})
+        shown_have = ", ".join([f"{a:g} to {b:g}" for a, b in ranges] + [f"{w:g}" for w in statics])
+        for w in spec.get("weights") or []:
+            if not any(lo <= w <= hi for lo, hi in have):
+                judge(tokens, f"type:{role}:weights", w,
+                      f"{label}: weight {w} is not in the font files (they have {shown_have})", findings, report)
+        if role == "body" and not any(font_is_italic(f) for f in opened):
+            judge(tokens, "type:body:italic", family, f"{label} has no italic", findings, report)
+    for line in report:
+        print(line)
+    for line in findings:
+        print(line)
+    return 1 if findings else 0
+
 
 
 CSS = f"{IDENTITY}/tokens.css"
@@ -456,16 +721,25 @@ def main(argv):
             return contrast(as_json="--json" in args)
         if command == "fonts":
             return fonts(as_json="--json" in args)
+        if command == "foundations":
+            return foundations()
+        if command == "type":
+            return type_checks()
+        if command == "accepted":
+            return accepted()
         if command == "tokens":
             return generated(write="--write" in args)
         if command == "board-fresh":
             return board_fresh()
         if command == "check":
-            return max(contrast(), fonts(), generated(), board_fresh())
+            code = max(contrast(), fonts(), foundations(), type_checks(), generated(), board_fresh(), accepted())
+            unused_exceptions()
+            return code
     except CannotRun as e:
         print(e)
         return 2
-    print("usage: brand.py contrast [--json] | fonts [--json] | tokens [--write] | board-fresh | check", file=sys.stderr)
+    print("usage: brand.py contrast [--json] | fonts [--json] | foundations | type | accepted | tokens [--write] | "
+          "board-fresh | check", file=sys.stderr)
     return 2
 
 
