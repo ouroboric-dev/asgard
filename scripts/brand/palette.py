@@ -92,6 +92,25 @@ def main(argv):
         for line in problems:
             print(f"brand.sh palette: {line}", file=sys.stderr)
         return 2
+    roles = spec.get("roles", {}) if isinstance(spec, dict) else {}
+    if not isinstance(roles, dict):
+        problems.append("roles is the candidate values for single colours: {\"accent\": [{\"id\": ..., \"name\": ..., "
+                        "\"light\": \"#RRGGBB\", \"dark\": \"#RRGGBB\"}]}")
+        roles = {}
+    for role, candidates in roles.items():
+        if role not in brand.COLOURS or not isinstance(candidates, list):
+            problems.append(f"roles: {role} is not a colour role with a list of candidates")
+            continue
+        for c in candidates:
+            ok = (isinstance(c, dict) and isinstance(c.get("id"), str) and re.match(r"^[a-z0-9-]+$", c["id"])
+                  and c["id"] not in ("keep", "custom") and isinstance(c.get("name"), str)
+                  and all(isinstance(c.get(m), str) and brand.HEX.match(c[m]) for m in ("light", "dark")))
+            if not ok:
+                problems.append(f"roles: {role}: a candidate needs an id, a name and a light and a dark #RRGGBB")
+    if problems:
+        for line in problems:
+            print(f"brand.sh palette: {line}", file=sys.stderr)
+        return 2
     results, failing = [], []
     for name, preset, palettes in kept:
         rows = brand.palette_rows(palettes)
@@ -111,7 +130,7 @@ def main(argv):
     out = os.path.join(company, OUT.format(rnd))
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8") as fh:
-        json.dump({"round": rnd, "presets": results}, fh, indent=2, ensure_ascii=False)
+        json.dump({"round": rnd, "presets": results, **({"roles": roles} if roles else {})}, fh, indent=2, ensure_ascii=False)
         fh.write("\n")
     for r in results:
         text = [row["ratio"] for row in r["contrast"] if row["kind"] == "text"]

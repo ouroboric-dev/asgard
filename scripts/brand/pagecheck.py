@@ -61,6 +61,14 @@ FINGERPRINT_JS = """() => {
   });
   return out.join("\\n");
 }"""
+INITIAL_JS = """() => {
+  const out = {};
+  document.querySelectorAll("[data-option-group]").forEach(g => {
+    const r = g.querySelector("input[type=radio]:checked");
+    out[g.getAttribute("data-option-group")] = r ? r.value : null;
+  });
+  return out;
+}"""
 STATE_JS = """() => ({ saved: (window.__choiceState || {}).saved || null,
   current: window.__currentChoice ? window.__currentChoice() : {} })"""
 CALM = "*, *::before, *::after { transition: none !important; animation: none !important; }"
@@ -129,11 +137,14 @@ def check(company, page_path):
                                   for k, v in saved.items() if k in state["current"] and state["current"][k] != v]
                         reopen = reopen if reopen else True
                     first = False
+                initial = page.evaluate(INITIAL_JS)
                 for name, values in page.evaluate(GROUPS_JS).items():
                     for value in values:
                         page.evaluate(SELECT_JS, [name, value])
                         fp = hashlib.sha256(page.evaluate(FINGERPRINT_JS).encode()).hexdigest()
                         prints.setdefault(name, {}).setdefault(value, []).append(fp)
+                    if initial.get(name) is not None:   # every option is compared from the page's own starting state
+                        page.evaluate(SELECT_JS, [name, initial[name]])
                 page.close()
             ctx.close()
         browser.close()

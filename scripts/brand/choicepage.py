@@ -49,20 +49,22 @@ JS = """
   function current() {
     var c = {};
     groups().forEach(function (g) { var r = g.querySelector("input[type=radio]:checked"); if (r) { c[g.getAttribute("data-option-group")] = r.value; } });
+    document.querySelectorAll("input[data-choice-field]").forEach(function (i) { if (i.value) { c[i.getAttribute("data-choice-field")] = i.value; } });
     return c;
   }
   window.__currentChoice = current;
+  function result() { return window.__choiceResult ? window.__choiceResult() : undefined; }
   RESTORE
   var status = document.getElementById("status");
   document.getElementById("save").addEventListener("click", function () {
     if (!state.token) { status.textContent = "Saving needs the page your helper opened for you. Use Download instead and give the file to your helper."; return; }
     fetch("/save/" + state.step, { method: "POST", headers: { "Content-Type": "application/json", "X-Choice-Token": state.token },
-      body: JSON.stringify({ choice: current(), reason: document.getElementById("reason").value }) })
+      body: JSON.stringify({ choice: current(), reason: document.getElementById("reason").value, result: result() }) })
       .then(function (r) { if (!r.ok) { throw new Error(r.status); } status.textContent = "Saved. Your helper can see it."; })
       .catch(function () { status.textContent = "It could not be saved. Use Download instead."; });
   });
   document.getElementById("download").addEventListener("click", function () {
-    var blob = new Blob([JSON.stringify({ step: state.step, choice: current(), reason: document.getElementById("reason").value }, null, 2)], { type: "application/json" });
+    var blob = new Blob([JSON.stringify({ step: state.step, choice: current(), reason: document.getElementById("reason").value, result: result() }, null, 2)], { type: "application/json" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = state.step + ".json";
     document.body.appendChild(a); a.click(); a.remove();
@@ -79,6 +81,10 @@ RESTORE = """
       for (var i = 0; i < radios.length; i++) {
         if (radios[i].value === value) { radios[i].checked = true; radios[i].dispatchEvent(new Event("change", { bubbles: true })); }
       }
+    });
+    document.querySelectorAll("input[data-choice-field]").forEach(function (i) {
+      var v = state.saved.choice[i.getAttribute("data-choice-field")];
+      if (v !== undefined) { i.value = v; i.dispatchEvent(new Event("input", { bubbles: true })); }
     });
     document.getElementById("reason").value = state.saved.reason || "";
   }

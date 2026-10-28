@@ -48,6 +48,7 @@ check "it refuses an unknown command" [ $? -eq 2 ]
 # Each case works in its own fresh copy of the scaffold; nothing is reset between cases.
 PY="$(sed -n 's/.*(\(.*\))$/\1/p' "$T/setup2.out")/venv/bin/python"
 FX="$HERE/brand_fixtures.py"
+PLAYWRIGHT_BROWSERS_PATH="$(dirname "$(dirname "$(dirname "$PY")")")/browsers"; export PLAYWRIGHT_BROWSERS_PATH
 fx() { "$PY" -I "$FX" "$@"; }
 # use NAME: a fresh copy of the scaffold at $T/NAME; sets C, L (its logo folder) and SRC (her PNGs).
 use() { C="$T/$1"; cp -R "$T/a" "$C"; L="$C/docs/7-branding/identity/logo"; SRC="$L/source"; mkdir -p "$SRC"; }
@@ -687,5 +688,45 @@ kill "$SERVER" 2>/dev/null; wait "$SERVER" 2>/dev/null
 check "serve stops when it is told to" stopped
 check "serve wrote nothing but the choice" only_choices_changed "$C"
 check "serve without a company folder is refused" [ "$("$BRAND" serve >/dev/null 2>&1; echo $?)" -eq 2 ]
+
+# The palette page (design system tasks DS-T14): step 6b, one option at a time.
+use palpage; CH="$C/$ID_REL/choices"; TK="$C/$ID_REL/tokens.json"; fx palette "$TK"; fx draw mark "$SRC/logo.png"
+PG="$CH/palette.html"; ROUNDF="$T/pal-round.json"
+palpage() { "$BRAND" palette-page "$C" >"$C.pp.out" 2>&1; echo $? >"$C.pp.code"; }
+# shellcheck disable=SC2329
+ppgcode() { [ "$(cat "$C.pp.code")" = "$1" ]; }
+palpage
+check "palette-page without a checked round is refused" ppgcode 2
+check "and names the command that makes one" says "$C.pp.out" "brand.sh palette"
+fx round "$ROUNDF" roles-fail; "$BRAND" palette "$C" "$ROUNDF" >/dev/null 2>&1; palpage
+check "palette-page writes the page from the latest checked round" ppgcode 0
+check "in the choices folder" test -f "$PG"
+check "the page is not committed: it is ignored" git -C "$C" check-ignore -q "$PG"
+check "the page passes the page check: every preset and every candidate colour changes it" check_page "$PG"
+check "each preset is a card of its own, shown one at a time, with its mood" \
+  fx page "$PG" 'len(d["presets"]) == 3 and all(p["mood"] in html for p in d["presets"]) and html.count("data-view=\"preset\"") == 3'
+check "each colour role has its own card with an explanation in plain words" \
+  fx page "$PG" 'all(r in html for r in ("The page background", "Text on a plain background", "The brand colour", "Text on a brand-colour fill"))'
+check "and the card of one role is shown at a time" fx browse "$PG" 'document.querySelectorAll("[data-card]:not([hidden])").length === 1'
+check "the contrast results are in words, with the ratio and the minimum" \
+  fx page "$PG" '"passes" in html and "needs at least 4.5:1" in html'
+check "the logo is shown recoloured by the palette, through masks of its own colours" \
+  fx page "$PG" '"mask-image" in html and "--logo-0" in html and len(d["logo"]["layers"]) == 2'
+check "the page's live rules give brand.py's ratio and result for every pair of every preset" \
+  fx browse "$PG" 'window.__rules && __data().presets.every(p => { const r = window.__rules.rows(p.light, p.dark); return r.length === p.contrast.length && r.every((x, i) => x.result === p.contrast[i].result && Math.abs(x.ratio - p.contrast[i].ratio) < 0.001); })'
+check "a candidate equal to the first preset's own value is left out, so it is not an option that changes nothing" \
+  fx page "$PG" 'not any(c["id"] == "same" for c in d["roles"].get("accent", []))'
+check "and the build says so" says "$C.pp.out" "same"
+check "a candidate colour that breaks a rule shows a warning in words" \
+  fx browse "$PG" '(() => { document.querySelector("input[name=role-muted][value=fainter]").click(); return document.getElementById("warnings").textContent.includes("muted on bg"); })()'
+check "the final palette is what the agent reads: a result with both modes" \
+  fx browse "$PG" 'window.__choiceResult && window.__choiceResult().light.bg && window.__choiceResult().dark.bg'
+check "the page builds strictly with the choices in the docs" builds "$C"
+check "the names check passes" names_pass "$C"
+fx round "$ROUNDF" ok; "$BRAND" palette "$C" "$ROUNDF" >/dev/null 2>&1; palpage
+check "a round without candidates still gives a page" ppgcode 0
+printf '{"step": "palette", "choice": {"preset": "bold", "role-accent": "keep"}, "reason": "Plum feels like us"}' >"$CH/palette.json"; palpage
+check "a saved choice is restored in the page" check_page "$PG"
+check "and says so" says "$C.cp.out" "reopens on the saved choice"
 
 exit "$fail"
