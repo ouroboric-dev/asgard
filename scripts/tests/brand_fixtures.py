@@ -224,7 +224,17 @@ def round_file(path, kind):
     elif kind == "brand-ok":
         presets[0]["light"]["brand-1"] = "#C2185B"
         presets[0]["dark"]["brand-1"] = "#F06292"
-    save(path, {"round": rnd, "presets": presets})
+    doc = {"round": rnd, "presets": presets}
+    if kind in ("roles", "roles-fail"):
+        presets[0]["mood"] = "Calm and clear, like a quiet morning"
+        presets[1]["mood"] = "Confident, with a touch of drama"
+        presets[2]["mood"] = "Soft and light"
+        doc["roles"] = {
+            "accent": [{"id": "deeper", "name": "Deeper", "light": "#0A4FA8", "dark": "#8FBBFF"},
+                       {"id": "same", "name": "As the first preset has it", "light": good["light"]["accent"], "dark": good["dark"]["accent"]}],
+            "muted": [{"id": "fainter", "name": "Fainter", "light": "#BBBBBB" if kind == "roles-fail" else "#666666",
+                       "dark": "#9A9A9A"}]}
+    save(path, doc)
 
 
 def arcs(path, flat):
@@ -377,6 +387,16 @@ def main(args):
         print(sock.getsockname()[1])
     elif cmd == "optionpage":  # optionpage PATH KIND: a choice page fixture for check-page (KIND: good, dead, dark-only, ...)
         optionpage(args[1], args[2], args[3] if len(args) > 3 else "")
+    elif cmd == "browse":  # browse PAGE EXPRESSION: open the page in the headless browser; exit 0 when the async expression is true
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page(viewport={"width": 1280, "height": 900})
+            page.goto("file://" + args[1])
+            page.wait_for_load_state("load")
+            ok = page.evaluate("async () => { return !!(" + args[2] + "); }")
+            browser.close()
+        return 0 if ok else 1
     elif cmd == "arcs":  # arcs PATH [flat]
         arcs(args[1], len(args) > 2 and args[2] == "flat")
     elif cmd == "colours":  # colours PNG MAX: opaque pixels have at most MAX colours, and the alpha is 0 or 255

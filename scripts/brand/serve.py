@@ -104,13 +104,17 @@ def make_handler(company, token, port):
                 return self.send(413, "A choice is at most 64 KB.\n")
             try:
                 body = json.loads(self.rfile.read(length).decode("utf-8"))
-                choice, reason = body["choice"], body.get("reason", "")
+                choice, reason, result = body["choice"], body.get("reason", ""), body.get("result")
                 if not isinstance(choice, dict) or not isinstance(reason, str) or len(reason) > MAX_REASON:
+                    raise ValueError
+                if result is not None and not isinstance(result, dict):
                     raise ValueError
             except (ValueError, KeyError, TypeError):
                 return self.send(400, "A choice is {\"choice\": {...}, \"reason\": \"...\"}.\n")
             step = m.group(1)
             record = {"step": step, "choice": choice, "reason": reason, "date": datetime.date.today().isoformat()}
+            if result is not None:
+                record["result"] = result
             os.makedirs(folder, exist_ok=True)
             fd, tmp = tempfile.mkstemp(dir=folder, suffix=".part")
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
