@@ -229,7 +229,7 @@ def build(company, candidates):
               '<p class="h3">A smaller title</p><p class="body" id="sample-body">Everything people read is set at the body size, with room between the lines, '
               'so a paragraph like this one stays easy to follow from the first word to the last.</p><p class="small">A caption, a little smaller.</p>'
               '<div class="grid"><div class="card" id="sample-card"><p class="h3">A card</p><p class="body">With a button and a field.</p>'
-              '<button type="button" class="btn focused">Book a date</button><div class="field focused">Your name</div></div>'
+              '<button type="button" class="btn focused">Get in touch</button><div class="field focused">Your name</div></div>'
               '<div class="motion"><p class="small">Motion, played on a loop</p><div class="track"><div id="motion-ball"></div></div>'
               '<p class="small" id="motion-words"></p><svg id="curve" viewBox="0 0 120 60" aria-label="The easing curve"><path id="curve-path" d="M0,60 L120,0" fill="none" stroke="currentColor" stroke-width="2"></path></svg></div></div>'
               '<div class="overlay">Something that floats above the page</div>'
