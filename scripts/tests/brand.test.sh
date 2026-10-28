@@ -157,6 +157,8 @@ says_all() { local f="$1" p; shift; for p in "$@"; do grep -q -- "$p" "$f" || re
 in_order() { local f="$1" last=0 n; shift; for h in "$@"; do
   n="$(grep -n -m1 -- "^## $h" "$f" | cut -d: -f1)"; [ -n "$n" ] && [ "$n" -gt "$last" ] || return 1; last="$n"; done; }
 # shellcheck disable=SC2329
+brand_check_passes() { (cd "$1" && python3 .ouroboric/checks/brand.py check >"$1.bc.out" 2>&1); }
+# shellcheck disable=SC2329
 no_html() { ! grep -vE '^<!--.*-->$' "$1" | grep -qE '<[a-zA-Z/]'; }
 # shellcheck disable=SC2329
 local_only() { ! grep -qE 'https?://|\]\(/|<script' "$1"; }
@@ -908,4 +910,115 @@ printf '{"step": "foundations", "choice": {"f-radius": "round", "f-motion": "liv
 check "a saved choice is restored" check_page "$FP"
 check "and says so" says "$C.cp.out" "reopens on the saved choice"
 
+# The playground (design system tasks DS-T11): the last look at everything together, then the export that brand.py validates.
+play() { ASGARD_FACES="$T/faces.json" ASGARD_FONTS_BASE="file://$TLIB" ASGARD_FONTS_DIR="$TDL" "$BRAND" playground "$@" >"$C.pl.out" 2>&1; echo $? >"$C.pl.code"; }
+# shellcheck disable=SC2329
+plcode() { [ "$(cat "$C.pl.code")" = "$1" ]; }
+use playbare; play "$C"
+check "the playground without a saved palette or a palette in the tokens is refused" plcode 2
+check "and says what to do first" says "$C.pl.out" "palette"
+use play; CH="$C/$ID_REL/choices"; TK="$C/$ID_REL/tokens.json"; PGP="$CH/playground.html"; mkdir -p "$CH"; fx draw mark "$SRC/logo.png"
+python3 - "$CH" <<'PY'
+import json, sys
+ch = sys.argv[1]
+good = {"light": {"bg": "#FFFFFF", "surface": "#F5F5F5", "border": "#DDDDDD", "text": "#1A1A1A", "muted": "#555555", "accent": "#0B5FCC", "accent-text": "#0B5FCC", "on-accent": "#FFFFFF", "ok": "#1B6E20", "warn": "#8A5A00", "crit": "#B00020"},
+        "dark": {"bg": "#121212", "surface": "#1E1E1E", "border": "#333333", "text": "#EDEDED", "muted": "#B0B0B0", "accent": "#6EA8FE", "accent-text": "#6EA8FE", "on-accent": "#121212", "ok": "#81C784", "warn": "#FFB74D", "crit": "#EF9A9A"}}
+json.dump({"step": "palette", "choice": {"preset": "calm"}, "reason": "Calm", "result": {"preset": "calm", **good, "kept": []}}, open(ch + "/palette.json", "w"))
+fonts = {r: {"id": i} for r, i in (("wordmark", "pen"), ("display", "slant"), ("heading", "slant"), ("body", "slant"), ("ui", "plain"))}
+json.dump({"step": "type-depth", "choice": {}, "reason": "", "result": {"favourites": ["plain", "slant", "bold", "pen"]}}, open(ch + "/type-depth.json", "w"))
+json.dump({"step": "type", "choice": {}, "reason": "", "result": {"fonts": fonts, "kept": []}}, open(ch + "/type.json", "w"))
+PY
+play "$C"
+check "with the choices saved, the playground is built" plcode 0
+check "in the choices folder, ignored by git" test -f "$PGP"
+check "the page passes the page check: every option of every tab changes it, in both modes" check_page "$PGP"
+check "it has a tab for the palette, the type, the foundations, the components and the checks" \
+  fx page "$PGP" 'all(x in html for x in ("data-tab=\"palette\"", "data-tab=\"type\"", "data-tab=\"foundations\"", "data-tab=\"components\"", "data-tab=\"checks\""))'
+check "the sample site has a navigation, a hero, a grid of images, an about block, service cards, a contact block and a footer" \
+  fx page "$PGP" 'all(("id=\"site-" + s + "\"") in html for s in ("nav", "hero", "grid", "about", "cards", "contact", "footer"))'
+check "it is painted only from tokens: no colour is written in the sample" \
+  fx browse "$PGP" '!/#[0-9a-fA-F]{6}/.test(document.getElementById("site").outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, ""))'
+check "the faces are embedded and no address is loaded" fx page "$PGP" 'html.count("data:font/woff2;base64") >= 4 and "src=\"http" not in html and "url(http" not in html'
+check "it opens on her saved choices: the palette is the saved one" \
+  fx browse "$PGP" 'window.__choiceResult().tokens.light.accent === "#0B5FCC" && window.__choiceResult().tokens.dark.bg === "#121212"'
+check "and the saved typefaces: the body is the one she chose" \
+  fx browse "$PGP" 'window.__choiceResult().tokens.type.fonts.body.family === "Slant Face" && window.__choiceResult().tokens.type.fonts.wordmark.family === "Pen Face"'
+check "and the foundations of the tokens" fx browse "$PGP" 'window.__choiceResult().tokens.target === 44 && window.__choiceResult().tokens.space.length === 7'
+check "the page's rules give brand.py's ratio and result for every contrast pair of the palette" \
+  fx browse "$PGP" 'window.__rules && window.__data().expected.every(r => { const x = window.__rules.rows(window.__data().palette.light, window.__data().palette.dark).find(y => y.mode === r.mode && y.fg === r.fg && y.bg === r.bg); return x && x.result === r.result && Math.abs(x.ratio - r.ratio) < 0.001; })'
+check "the checks tab lists every check with its id" fx browse "$PGP" 'window.__checks().some(c => c.id === "contrast:light:text/bg") && window.__checks().some(c => c.id === "type:body:italic") && window.__checks().some(c => c.id === "focus:light:bg")'
+check "a change that breaks a rule shows it open: a muted colour too faint" \
+  fx browse "$PGP" '(() => { const f = document.querySelector("input[data-choice-field=custom-muted]"); f.value = "#BBBBBB | #666666"; f.dispatchEvent(new Event("input", {bubbles: true})); return window.__checks().some(c => c.id === "contrast:light:muted/bg" && !c.pass && !c.kept); })()'
+check "and she may keep it, with a reason, which becomes an accepted exception" \
+  fx browse "$PGP" '(() => { const f = document.querySelector("input[data-choice-field=custom-muted]"); f.value = "#BBBBBB | #666666"; f.dispatchEvent(new Event("input", {bubbles: true})); window.__keep("contrast:light:muted/bg", "Captions only."); const r = window.__choiceResult(); return r.kept.some(k => k.check === "contrast:light:muted/bg" && k.reason === "Captions only." && k.value === "#BBBBBB/#FFFFFF"); })()'
+check "a face without the italic the body needs is an open check" \
+  fx browse "$PGP" '(() => { document.querySelector("input[name=t-body][value=plain]").click(); return window.__checks().some(c => c.id === "type:body:italic" && !c.pass); })()'
+check "a component variant that needs more of the palette is checked too" \
+  fx browse "$PGP" '(() => { document.querySelector("input[name=c-link][value=colour]").click(); return window.__checks().some(c => c.id.startsWith("components:link:")); })()'
+check "the export has the token file's keys" \
+  fx browse "$PGP" '(() => { const t = window.__choiceResult().tokens; return t.light.bg && t.type.scale.sizes.body >= 16 && Array.isArray(t.breakpoints) && t.radius.button !== undefined && t.components.button && Array.isArray(t.accepted); })()'
+check "the pages build strictly and the names check passes" builds "$C"
+check "and the names check" names_pass "$C"
+printf '{"step": "playground", "choice": {"c-button": "soft"}, "reason": "Soft", "result": {}}' >"$CH/playground.json"; play "$C"
+check "a saved choice is restored" check_page "$PGP"
+check "and says so" says "$C.cp.out" "reopens on the saved choice"
+# Applying: brand.py validates the export before anything is written.
+ALIB="$T/applib"; ALLT="$(python3 -c 'print(",".join("%x" % c for c in list(range(0x20, 0x7f)) + [0x2019, 0x201c, 0x201d, 0x2013, 0x2014, 0x2026, 0x20ac]))')"
+fx face "$ALIB/plainface" "Plain Face" "PlainFace-Regular.ttf" "$ALLT" 400 0 - ofl
+fx face "$ALIB/slantface" "Slant Face" "SlantFace[wght].ttf" "$ALLT" 400 0 wght ofl
+fx face "$ALIB/slantface" "Slant Face" "SlantFace-Italic[wght].ttf" "$ALLT" 400 1 wght ofl
+applyp() { ASGARD_FONTS_DIR="$ALIB" "$BRAND" playground-apply "$@" >"$C.ap.out" 2>&1; echo $? >"$C.ap.code"; }
+# shellcheck disable=SC2329
+apcode() { [ "$(cat "$C.ap.code")" = "$1" ]; }
+use apply0; applyp "$C" --by "Alex"
+check "playground-apply with nothing saved is refused" apcode 2
+use apply1; CH="$C/$ID_REL/choices"; TK="$C/$ID_REL/tokens.json"; mkdir -p "$CH"; fx draw mark "$SRC/logo.png"
+python3 - "$CH" "$TK" <<'PY'
+import json, sys
+ch, tk = sys.argv[1:]
+t = json.load(open(tk))
+good = {"light": {"bg": "#FFFFFF", "surface": "#F5F5F5", "border": "#DDDDDD", "text": "#1A1A1A", "muted": "#555555", "accent": "#0B5FCC", "accent-text": "#0B5FCC", "on-accent": "#FFFFFF", "ok": "#1B6E20", "warn": "#8A5A00", "crit": "#B00020"},
+        "dark": {"bg": "#121212", "surface": "#1E1E1E", "border": "#333333", "text": "#EDEDED", "muted": "#B0B0B0", "accent": "#6EA8FE", "accent-text": "#6EA8FE", "on-accent": "#121212", "ok": "#81C784", "warn": "#FFB74D", "crit": "#EF9A9A"}}
+fonts = {r: {"id": i, "family": f, "licence": "OFL-1.1", "source": "https://example.org/" + i, "files": files, "weights": [{"min": 400, "max": 400}], "dir": i + "face"}
+         for r, i, f, files in (("wordmark", "plain", "Plain Face", ["PlainFace-Regular.ttf"]), ("display", "plain", "Plain Face", ["PlainFace-Regular.ttf"]),
+                                ("heading", "plain", "Plain Face", ["PlainFace-Regular.ttf"]), ("body", "slant", "Slant Face", ["SlantFace[wght].ttf", "SlantFace-Italic[wght].ttf"]),
+                                ("ui", "plain", "Plain Face", ["PlainFace-Regular.ttf"]))}
+t.update({"light": good["light"], "dark": good["dark"]})
+t["languages"] = ["en"]
+tokens = {**t, "type": {"fonts": {r: {"family": v["family"], "fallback": "sans-serif", "weights": [400], "files": "fonts/" + v["dir"], "licence": v["licence"], "source": v["source"]} for r, v in fonts.items()}, "scale": t["type"]["scale"]}, "accepted": []}
+copy = [{"dir": "plainface", "files": ["PlainFace-Regular.ttf"]}, {"dir": "slantface", "files": ["SlantFace[wght].ttf", "SlantFace-Italic[wght].ttf"]}]
+json.dump({"step": "playground", "choice": {}, "reason": "Done", "result": {"tokens": tokens, "kept": [], "copy": copy}}, open(ch + "/playground.json", "w"))
+PY
+sumtk="$(sha256sum "$TK")"; applyp "$C" --by "Alex"
+check "playground-apply writes the export into tokens.json when brand.py accepts it" apcode 0
+check "tokens.json holds the new palette" fx json "$TK" 'd["light"]["accent"] == "#0B5FCC" and d["dark"]["bg"] == "#121212"'
+check "and the typefaces, with their folders and licences" fx json "$TK" 'd["type"]["fonts"]["body"]["family"] == "Slant Face" and d["type"]["fonts"]["body"]["files"] == "fonts/slantface"'
+check "the shipped font files are copied beside the identity, with their licence file" test -f "$C/$ID_REL/fonts/slantface/SlantFace[wght].ttf" -a -f "$C/$ID_REL/fonts/slantface/OFL.txt"
+check "the generated CSS and web fonts are made again" says_all "$C.ap.out" "tokens.css" "web"
+check "and the company's checks pass on the result" brand_check_passes "$C"
+check "the apply says what it did" [ "$(sha256sum "$TK")" != "$sumtk" ]
+python3 - "$CH" "$TK" <<'PY'
+import json, sys
+ch, tk = sys.argv[1:]
+d = json.load(open(ch + "/playground.json")); d["result"]["tokens"]["light"]["muted"] = "#BBBBBB"; json.dump(d, open(ch + "/playground.json", "w"))
+PY
+sumbefore="$(sha256sum "$TK")"; applyp "$C" --by "Alex"
+check "an export that fails a rule she did not keep is refused, with code 1" apcode 1
+check "and names the failing pair" says "$C.ap.out" "muted on bg"
+check "and tokens.json is left as it was" [ "$(sha256sum "$TK")" = "$sumbefore" ]
+python3 - "$CH" <<'PY'
+import json, sys
+ch = sys.argv[1]
+d = json.load(open(ch + "/playground.json")); d["result"]["kept"] = [{"check": "contrast:light:muted/bg", "value": "#BBBBBB/#FFFFFF", "reason": "Captions only."}, {"check": "contrast:light:muted/surface", "value": "#BBBBBB/#F5F5F5", "reason": "Captions only."}]
+json.dump(d, open(ch + "/playground.json", "w"))
+PY
+applyp "$C" --by "Alex"
+check "the same export with the failures kept, with her reason, is applied" apcode 0
+check "they become accepted exceptions with who and when" \
+  fx json "$TK" 'any(a["check"] == "contrast:light:muted/bg" and a["reason"] == "Captions only." and a["by"] == "Alex" and len(a["date"]) == 10 for a in d["accepted"])'
+check "and the company's checks pass, the exceptions reported as accepted" brand_check_passes "$C"
+applyp "$C"
+check "playground-apply needs to know who accepts the exceptions" apcode 2
+
+echo "end of suite: every check ran"
 exit "$fail"
