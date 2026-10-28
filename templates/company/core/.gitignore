@@ -2,3 +2,7 @@
 *.raw.png
 .DS_Store
 .local/
+
+# Pages and working files the choice tools generate: the choices themselves (the .json files) are committed.
+docs/7-branding/identity/choices/*.html
+docs/7-branding/identity/choices/logo-prep/

@@ -7,10 +7,11 @@ CANDIDATES.json: {"name": "Example Studio", "faces": ["plain", "ring"], "alterna
 "strength": "...", "risk": "...", "fails_at": 24, "lettering": false, "image": "path", "mark": "path"}, ...]}.
 An alternative without lettering is one image (`image`). One with lettering is a `mark` and the company's name set in the
 lettering face (`layout` beside or above), or, with `replaces_letter`, the mark in the place of that letter in the name.
-`symbol_in` names the letter whose counter holds the symbol. `faces` are ids in .ouroboric/choices/fonts-facts.json
+`symbol_in` names the letter whose counter holds the symbol. `faces` are ids in docs/7-branding/identity/choices/fonts-facts.json
 (brand.sh fonts); each pairing of alternative and face is checked before the page shows it, and a pairing that does not
 work carries a visible note. Paths are inside DIR. Colours come from the palette in tokens.json when it is set, else a
-neutral one. Writes .ouroboric/choices/logo-proposals.html; with --choose, also logo/source/ and choices/logo.json.
+neutral one. Writes docs/7-branding/identity/choices/logo-proposals.html;
+with --choose, also logo/source/ and choices/logo.json.
 """
 import argparse
 import base64
@@ -25,7 +26,7 @@ import tempfile
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-CHOICES = ".ouroboric/choices"
+CHOICES = "docs/7-branding/identity/choices"
 IDENTITY = "docs/7-branding/identity"
 HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 NEUTRAL = {"light": {"bg": "#FFFFFF", "text": "#1A1A1A", "accent": "#0B5FCC", "muted": "#555555"},
@@ -139,7 +140,8 @@ class Face:
         self.joined = bool(spec.get("joined"))
         self.licence = (spec.get("licence") or {}).get("spdx") or "unknown"
         first = (spec.get("files") or [{}])[0].get("name")
-        self.path = os.path.join(spec.get("folder", ""), first or "")
+        import fonts as library
+        self.path = os.path.join(library.downloads(), spec.get("dir", ""), first or "")
         if not first or not os.path.isfile(self.path):
             raise Refused(f"face {self.id}: its font file is not in the downloads: run brand.sh fonts again")
         self.cmap = None

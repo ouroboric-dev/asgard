@@ -2,7 +2,7 @@
 # The brand tools of step 6 of the company kickstart (brand tools spec §3.2).
 #   brand.sh setup                 install the pinned tools into the cache; uses the network
 #   brand.sh fonts DIR CANDIDATES  fetch candidate typefaces and their licences, write their facts (uses the network
-#                                  for files not yet downloaded; the facts go to DIR/.ouroboric/choices/)
+#                                  for files not yet downloaded; the facts go to DIR/docs/7-branding/identity/choices/)
 #   brand.sh palette DIR ROUND     check every preset of a palette round with the company's contrast rules
 #   brand.sh logo-prep [--mark] DIR IMAGE   cut out, flatten and enlarge the founder's concept
 #   brand.sh logo-proposals DIR CANDIDATES [--choose ALT[:FACE]]   the logo review page; the chosen design as source PNGs

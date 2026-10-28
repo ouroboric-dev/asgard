@@ -3,7 +3,7 @@ logo's flat colours, and raise the resolution, so the tracer gets what it traces
 
     logoprep.py [--mark] DIR IMAGE
 
-Writes DIR/.ouroboric/choices/logo-prep/<name>.png and <name>.json (what was done). The short side becomes at least
+Writes DIR/docs/7-branding/identity/choices/logo-prep/<name>.png and <name>.json (what was done). The short side becomes at least
 1000 pixels, and at least 2400 for a mark (`--mark`): at 1400 pixels the tracer cut a mark's long arcs short. Run by
 brand.sh logo-prep; writes nothing else.
 """
@@ -158,7 +158,7 @@ def main(argv):
     except Refused as e:
         print(f"brand.sh logo-prep: {e}", file=sys.stderr)
         return 2
-    folder = os.path.join(args.company, ".ouroboric", "choices", "logo-prep")
+    folder = os.path.join(args.company, "docs/7-branding/identity/choices", "logo-prep")
     os.makedirs(folder, exist_ok=True)
     stem = os.path.splitext(os.path.basename(args.image))[0]
     out.save(os.path.join(folder, f"{stem}.png"))
@@ -167,7 +167,7 @@ def main(argv):
         fh.write("\n")
     print(f"Prepared {facts['input']['name']}: background {facts['background']['from']}, "
           f"{len(facts['colours'])} flat colours, {facts['input']['width']}x{facts['input']['height']} -> "
-          f"{facts['output']['width']}x{facts['output']['height']}: .ouroboric/choices/logo-prep/{stem}.png")
+          f"{facts['output']['width']}x{facts['output']['height']}: docs/7-branding/identity/choices/logo-prep/{stem}.png")
     for w in facts["warnings"]:
         print(f"warning: {w}")
     return 0
