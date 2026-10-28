@@ -63,6 +63,8 @@ done; }
 # shellcheck disable=SC2329
 only_logo_changed() { ! git -C "$1" status --porcelain | grep -qv 'docs/7-branding/identity/logo/'; }
 # shellcheck disable=SC2329
+only_choices_changed() { ! git -C "$1" status --porcelain | grep -qv '.ouroboric/choices/'; }
+# shellcheck disable=SC2329
 names_pass() { (cd "$1" && .ouroboric/checks/names-check.sh); }
 logo_sums() { (cd "$L" && find . -type f ! -path './source/*' -exec sha256sum {} + | sort); }
 
@@ -288,5 +290,92 @@ check "a second board writes byte-identical files, applications included" [ "$(b
 use bnone; board
 check "a board with no logo and no exceptions says so, and still writes" bcode 0
 check "no exception is stated" says "$C/$ID_REL/board.md" "No exception is kept"
+
+# The typography tool (design system tasks DS-T05): candidate faces fetched from the library, their facts read from the
+# files. The library is a folder here, reached through file://; nothing is fetched from the network.
+use fonts1
+LIB="$T/library"; DL="$T/downloads"; FACTS="$C/.ouroboric/choices/fonts-facts.json"
+PTX="e1,e0,e2,e3,e7,e9,ea,ed,f3,f4,f5,fa,fc,c1,c0,c2,c3,c7,c9,ca,cd,d3,d4,d5,da,dc"
+fx face "$LIB/plainsans" "Plain Sans" "PlainSans-Regular.ttf" "-" 400 0 - ofl
+fx face "$LIB/slantserif" "Slant Serif" "SlantSerif-Regular.ttf" "-" 400 0 - ofl
+fx face "$LIB/slantserif" "Slant Serif" "SlantSerif-Italic.ttf" "-" 400 1 - ofl
+fx face "$LIB/flexsans" "Flex Sans" "FlexSans[wght].ttf" "$PTX" 400 0 wght ofl
+fx face "$LIB/closedsans" "Closed Sans" "ClosedSans-Regular.ttf" "-" 400 0 - unknown
+python3 - "$T/candidates.json" <<'PY'
+import json, sys
+json.dump({"languages": ["pt"], "candidates": [
+    {"id": "plain", "family": "Plain Sans", "dir": "plainsans", "files": ["PlainSans-Regular.ttf"], "italic": True, "group": "serious"},
+    {"id": "slant", "family": "Slant Serif", "dir": "slantserif", "files": ["SlantSerif-Regular.ttf", "SlantSerif-Italic.ttf"], "italic": False},
+    {"id": "flex", "family": "Flex Sans", "dir": "flexsans", "files": ["FlexSans[wght].ttf"]},
+    {"id": "closed", "family": "Closed Sans", "dir": "closedsans", "files": ["ClosedSans-Regular.ttf"]}]},
+    open(sys.argv[1], "w"))
+PY
+fontsrun() { ASGARD_FONTS_BASE="file://$LIB" ASGARD_FONTS_DIR="$DL" "$BRAND" fonts "$C" "$T/candidates.json" >"$C.fonts.out" 2>&1; echo $? >"$C.fonts.code"; }
+# shellcheck disable=SC2329
+fcode() { [ "$(cat "$C.fonts.code")" = "$1" ]; }
+XDG_CACHE_HOME="$T/empty" "$BRAND" fonts "$C" "$T/candidates.json" >/dev/null 2>&1
+check "fonts refuses to run without the environment" [ $? -eq 2 ]
+fontsrun
+check "fonts fetches the candidates and writes their facts" fcode 0
+check "the facts are in the company's choices folder" test -f "$FACTS"
+check "each candidate's files and licence are downloaded, unchanged" test -f "$DL/plainsans/PlainSans-Regular.ttf" -a -f "$DL/plainsans/OFL.txt"
+# shellcheck disable=SC2329
+hash_matches() {
+  [ "$(fx json-get "$FACTS" 'd["candidates"][0]["files"][0]["sha256"]')" = "$(sha256sum "$DL/plainsans/PlainSans-Regular.ttf" | cut -d' ' -f1)" ]
+}
+check "the file's hash is recorded and matches the download" hash_matches
+check "a face with no italic file is reported without italic, whatever the candidates file says" \
+  fx json "$FACTS" 'd["candidates"][0]["italic"] is False'
+check "and the disagreement is noted" fx json "$FACTS" 'any("italic" in x for x in d["candidates"][0]["notes"])'
+check "a face with an italic file is reported with it, and the file is named" \
+  fx json "$FACTS" 'd["candidates"][1]["italic"] is True and d["candidates"][1]["italic_from"] == "SlantSerif-Italic.ttf"'
+check "even when the candidates file says it has none" fx json "$FACTS" 'any("italic" in x for x in d["candidates"][1]["notes"])'
+check "a variable font's weights come from its axis" \
+  fx json "$FACTS" 'd["candidates"][2]["weights"] == [{"min": 300, "max": 700}]'
+check "a static font's weight comes from the file" \
+  fx json "$FACTS" 'd["candidates"][0]["weights"] == [{"min": 400, "max": 400}]'
+check "the glyphs of each language are counted from the font" \
+  fx json "$FACTS" 'd["candidates"][0]["glyphs"]["pt"]["covers"] is False and d["candidates"][0]["glyphs"]["pt"]["missing"] > 50'
+check "a font that covers the language is reported as covering it" \
+  fx json "$FACTS" 'd["candidates"][2]["glyphs"]["pt"]["missing"] < d["candidates"][0]["glyphs"]["pt"]["missing"]'
+check "the family name is read from the file" fx json "$FACTS" 'd["candidates"][0]["family_in_file"] == "Plain Sans"'
+check "a known open licence is named by its SPDX id" fx json "$FACTS" 'd["candidates"][0]["licence"]["spdx"] == "OFL-1.1"'
+check "a licence the tool does not know has no id, and is flagged for a person" \
+  fx json "$FACTS" 'd["candidates"][3]["licence"]["spdx"] is None and any("licence" in x for x in d["candidates"][3]["notes"])'
+check "the candidates file's own fields travel with the facts" fx json "$FACTS" 'd["candidates"][0]["group"] == "serious"'
+check "the folder to copy from is named" fx json "$FACTS" 'd["candidates"][0]["folder"].endswith("plainsans")'
+check "fonts writes nothing else in the company" only_choices_changed "$C"
+check "the names check passes after fonts" names_pass "$C"
+sum1="$(sha256sum "$FACTS")"; fontsrun
+check "a second run writes the same facts" [ "$(sha256sum "$FACTS")" = "$sum1" ]
+ASGARD_FONTS_BASE="file://$T/nowhere" ASGARD_FONTS_DIR="$DL" "$BRAND" fonts "$C" "$T/candidates.json" >"$C.fonts.out" 2>&1; echo $? >"$C.fonts.code"
+check "a second run needs no library: the downloads are kept" fcode 0
+
+use fonts2; FACTS="$C/.ouroboric/choices/fonts-facts.json"
+python3 - "$T/candidates-bad.json" <<'PY'
+import json, sys
+json.dump({"candidates": [{"id": "a", "family": "Plain Sans", "dir": "plainsans", "files": ["PlainSans-Regular.ttf"]},
+                          {"id": "b", "family": "Gone", "dir": "gone", "files": ["Gone-Regular.ttf"]}]}, open(sys.argv[1], "w"))
+PY
+DL2="$T/downloads2"
+ASGARD_FONTS_BASE="file://$LIB" ASGARD_FONTS_DIR="$DL2" "$BRAND" fonts "$C" "$T/candidates-bad.json" >"$C.fonts.out" 2>&1; echo $? >"$C.fonts.code"
+check "a file the library does not have refuses the run, with code 2" fcode 2
+check "and names the file" says "$C.fonts.out" "Gone-Regular.ttf"
+check "and writes no facts" test ! -f "$FACTS"
+python3 - "$T/candidates-evil.json" <<'PY'
+import json, sys
+json.dump({"candidates": [{"id": "a", "family": "X", "dir": "../x", "files": ["a.ttf"]}]}, open(sys.argv[1], "w"))
+PY
+ASGARD_FONTS_BASE="file://$LIB" ASGARD_FONTS_DIR="$DL2" "$BRAND" fonts "$C" "$T/candidates-evil.json" >"$C.fonts.out" 2>&1; echo $? >"$C.fonts.code"
+check "a folder name that leaves the library is refused" fcode 2
+python3 - "$T/candidates-evil2.json" <<'PY'
+import json, sys
+json.dump({"candidates": [{"id": "a", "family": "X", "dir": "plainsans", "files": ["../../secret.ttf"]}]}, open(sys.argv[1], "w"))
+PY
+ASGARD_FONTS_BASE="file://$LIB" ASGARD_FONTS_DIR="$DL2" "$BRAND" fonts "$C" "$T/candidates-evil2.json" >"$C.fonts.out" 2>&1; echo $? >"$C.fonts.code"
+check "a file name that leaves the folder is refused" fcode 2
+ASGARD_FONTS_BASE="http://example.org/ofl" ASGARD_FONTS_DIR="$DL2" "$BRAND" fonts "$C" "$T/candidates.json" >"$C.fonts.out" 2>&1; echo $? >"$C.fonts.code"
+check "a library address that is not https or a local folder is refused" fcode 2
+check "fonts without a candidates file is refused" [ "$("$BRAND" fonts "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
 
 exit "$fail"

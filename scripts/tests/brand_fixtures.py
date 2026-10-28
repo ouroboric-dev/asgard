@@ -141,6 +141,44 @@ def font(tokens, folder, family, flavor):
     save(tokens, t)
 
 
+def face(folder, family, name, chars, weight, italic, axis, licence):
+    """A font file and its licence file in `folder`, as the library publishes a family: `axis` is "wght" for a
+    variable font with a weight axis from 300 to 700 (and "wght,ital" with an italic axis too), else "-"."""
+    import os
+
+    from fontTools.fontBuilder import FontBuilder
+    from fontTools.pens.ttGlyphPen import TTGlyphPen
+
+    os.makedirs(folder, exist_ok=True)
+    chars = "".join(chr(int(c, 16)) for c in chars.split(",")) if chars != "-" else "ABCabc"
+    order = [".notdef"] + ["g%04X" % ord(c) for c in chars]
+    fb = FontBuilder(1000, isTTF=True)
+    fb.setupGlyphOrder(order)
+    fb.setupCharacterMap({ord(c): "g%04X" % ord(c) for c in chars})
+    pen = TTGlyphPen(None)
+    pen.moveTo((50, 0))
+    pen.lineTo((300, 700))
+    pen.lineTo((550, 0))
+    pen.closePath()
+    glyph = pen.glyph()
+    fb.setupGlyf({g: glyph for g in order})
+    fb.setupHorizontalMetrics({g: (600, 50) for g in order})
+    fb.setupHorizontalHeader(ascent=800, descent=-200)
+    fb.setupNameTable({"familyName": family, "styleName": "Italic" if italic == "1" else "Regular"})
+    fb.setupOS2(usWeightClass=int(weight), fsType=0, fsSelection=1 if italic == "1" else 0x40)
+    fb.setupPost()
+    if italic == "1":
+        fb.font["head"].macStyle = 2
+    if axis != "-":
+        axes = [("wght", 300, 400, 700, "Weight")] + ([("ital", 0, 0, 1, "Italic")] if "ital" in axis else [])
+        fb.setupFvar(axes=axes, instances=[])
+    fb.save(os.path.join(folder, name))
+    text = {"ofl": "SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007\n",
+            "unknown": "Commercial font licence. One desktop seat.\n"}[licence]
+    with open(os.path.join(folder, "OFL.txt"), "w", encoding="utf-8") as fh:
+        fh.write(text)
+
+
 def main(args):
     cmd = args[0]
     if cmd == "draw":
@@ -162,6 +200,12 @@ def main(args):
                                            "colour_delta": 0.0, "colours": light},
                                  "dark": {"from": "derived", "colours": dark}},
                        "proposed_brand_tokens": [], "gaps": [], "faithful": True})
+    elif cmd == "face":  # face FOLDER FAMILY FILE CHARS(hex,hex|-) WEIGHT ITALIC(0|1) AXIS LICENCE
+        face(*args[1:9])
+    elif cmd == "json-get":  # json-get FILE PYTHON-EXPRESSION: print the value
+        print(eval(args[2], {"d": load(args[1])}))
+    elif cmd == "json":  # json FILE PYTHON-EXPRESSION: exit 0 when the expression is true of d
+        return 0 if eval(args[2], {"d": load(args[1])}) else 1
     elif cmd == "accepted":  # accepted TOKENS CHECK VALUE REASON
         t = load(args[1])
         t["accepted"].append({"check": args[2], "value": args[3], "reason": args[4], "by": "Alex", "date": "2026-10-28"})
