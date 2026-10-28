@@ -1,0 +1,29 @@
+{
+  "comment": "The component variants of the token contract (spec §5.5): for each component, the variants the founder can choose between. The recipes say which tokens each variant uses.",
+  "components": [
+    {"id": "button", "name": "Buttons", "why": "The main action on a page.", "cands": [
+      {"id": "filled", "name": "Filled", "note": "A solid brand colour: the strongest."},
+      {"id": "outlined", "name": "Outlined", "note": "A brand-colour outline: lighter."},
+      {"id": "soft", "name": "Soft tint", "note": "A pale tint of the brand colour: gentle."}]},
+    {"id": "link", "name": "Links", "why": "How a link shows that it is one.", "cands": [
+      {"id": "underlined", "name": "Underlined", "note": "Always underlined: the clearest."},
+      {"id": "colour", "name": "Colour only", "note": "Underlined on hover; its colour must differ from the text."}]},
+    {"id": "card", "name": "Cards", "why": "How a block of content is set apart.", "cands": [
+      {"id": "bordered", "name": "Bordered", "note": "A thin outline."},
+      {"id": "surface", "name": "Surface", "note": "A tinted background, no outline."},
+      {"id": "raised", "name": "Raised", "note": "A tinted background with the card's shadow."}]},
+    {"id": "message", "name": "Messages", "why": "How a success, a warning or an error is told.", "cands": [
+      {"id": "tint", "name": "Tinted box", "note": "A pale box in the message colour."},
+      {"id": "bar", "name": "Side bar", "note": "A coloured bar on the side."}]},
+    {"id": "nav", "name": "Navigation", "why": "Where the logo and the menu sit.", "cands": [
+      {"id": "left", "name": "Logo left", "note": "The logo at the start, the links at the end."},
+      {"id": "centre", "name": "Logo centred", "note": "The logo in the middle, the links beneath."}]},
+    {"id": "image", "name": "Images", "why": "How a photograph is framed.", "cands": [
+      {"id": "borderless", "name": "Borderless", "note": "The image alone."},
+      {"id": "rounded", "name": "Rounded", "note": "Corners of the card radius."},
+      {"id": "framed", "name": "Framed", "note": "A margin around it, like a print."}]},
+    {"id": "icons", "name": "Icons", "why": "The style of the small pictures.", "cands": [
+      {"id": "outline", "name": "Outline", "note": "Thin strokes."},
+      {"id": "filled", "name": "Filled", "note": "Solid shapes."}]}
+  ]
+}

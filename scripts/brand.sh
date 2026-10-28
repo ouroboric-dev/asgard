@@ -126,6 +126,14 @@ case "$cmd" in
     need_env
     [ $# -ge 1 ] && [ $# -le 2 ] || die "usage: brand.sh foundations-page DIR [CANDIDATES.json]"
     exec "$ENV/venv/bin/python" -I -B "$LIB/foundationspage.py" "$@" ;;
+  playground)
+    need_env
+    [ $# -ge 1 ] && [ $# -le 2 ] || die "usage: brand.sh playground DIR [CANDIDATES.json]"
+    exec "$ENV/venv/bin/python" -I -B "$LIB/playground.py" "$@" ;;
+  playground-apply)
+    need_env
+    [ $# -ge 1 ] || die "usage: brand.sh playground-apply DIR --by NAME"
+    exec "$ENV/venv/bin/python" -I -B "$LIB/playground.py" --apply "$@" ;;
   check-page)
     need_env
     [ $# -eq 2 ] || die "usage: brand.sh check-page DIR PAGE.html"
@@ -142,5 +150,5 @@ case "$cmd" in
     need_env
     [ $# -eq 2 ] || die "usage: brand.sh palette DIR ROUND.json"
     exec "$ENV/venv/bin/python" -I -B "$LIB/palette.py" "$@" ;;
-  *) die "usage: brand.sh setup | fonts DIR CANDIDATES.json | palette DIR ROUND.json | palette-page DIR | type-page DIR CANDIDATES.json [--stage S] | foundations-page DIR [CANDIDATES.json] | serve DIR [--port N] | check-page DIR PAGE.html | logo-prep [--mark] DIR IMAGE | logo-proposals DIR CANDIDATES.json [--choose ALT[:FACE]] | logo DIR | board [--check] DIR" ;;
+  *) die "usage: brand.sh setup | fonts DIR CANDIDATES.json | palette DIR ROUND.json | palette-page DIR | type-page DIR CANDIDATES.json [--stage S] | foundations-page DIR [CANDIDATES.json] | playground DIR [CANDIDATES.json] | playground-apply DIR --by NAME | serve DIR [--port N] | check-page DIR PAGE.html | logo-prep [--mark] DIR IMAGE | logo-proposals DIR CANDIDATES.json [--choose ALT[:FACE]] | logo DIR | board [--check] DIR" ;;
 esac
