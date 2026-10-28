@@ -273,7 +273,7 @@ check "and under :root[data-theme=\"dark\"]" says "$CSS" ':root\[data-theme="dar
 check "it says it is generated and must not be edited" says "$CSS" "Generated from tokens.json"
 ofl_font "Test Serif"; role heading "Test Serif" fonts/test OFL-1.1; brand tokens --write
 check "each role gets a font stack" says "$CSS" '--font-heading: "Test Serif", serif;'
-check "fonts.css has one @font-face for the shipped file" says "$ID/fonts.css" 'src: url("fonts/test/Test-Regular.ttf") format("truetype");'
+check "fonts.css has one @font-face for the shipped file, served as WOFF2" says "$ID/fonts.css" 'src: url("fonts/test/web/Test-Regular.woff2") format("woff2");'
 check "with font-display: swap" says "$ID/fonts.css" "font-display: swap;"
 sum1="$(sha256sum "$CSS" "$ID/fonts.css")"; brand tokens --write
 check "a second --write gives byte-identical files" [ "$(sha256sum "$CSS" "$ID/fonts.css")" = "$sum1" ]
@@ -464,6 +464,49 @@ fresh; FONT_CHARS="$LATIN" ofl_font "Test Sans"; role heading "Test Sans" fonts/
 check "only the body face needs an italic" code 0
 brand check
 check "check runs the foundations and the type checks too" says_all "$T/out" "foundations" "Test Sans"
+fresh
+
+# Web fonts (design system tasks DS-T08; spec §4.3): WOFF2, subset to the clients' languages; the original stays.
+# woff_has FILE CHARS... : every character is in the font file's cmap.
+# shellcheck disable=SC2329 # runs through check and lacks
+woff_has() {
+  python3 - "$@" <<'PY'
+import sys
+from fontTools.ttLib import TTFont
+cmap = TTFont(sys.argv[1]).getBestCmap()
+sys.exit(0 if all(ord(c) in cmap for c in "".join(sys.argv[2:])) else 1)
+PY
+}
+# shellcheck disable=SC2329
+lacks() { ! woff_has "$@"; }
+# shellcheck disable=SC2329
+is_woff2() { [ "$(head -c 4 "$1")" = "wOF2" ]; }
+CYR="$(python3 -c 'print("Жд", end="")')"
+fresh; tweak "t['languages'] = ['pt']"; FONT_CHARS="$ASCII$TYPO$PT$CYR" ofl_font "Test Sans"; role body "Test Sans" fonts/test OFL-1.1
+sum_ttf="$(sha256sum "$ID/fonts/test/Test-Regular.ttf")"; brand tokens --write
+WEBF="$ID/fonts/test/web/Test-Regular.woff2"
+check "tokens --write converts the shipped font to a WOFF2 file" is_woff2 "$WEBF"
+check "the WOFF2 holds every glyph of the clients' language" woff_has "$WEBF" "$ASCII" "$TYPO" "$PT"
+check "and is subset to those languages: a Cyrillic glyph is left out" lacks "$WEBF" "$CYR"
+check "the original font file stays, unchanged, as the licence's evidence" [ "$(sha256sum "$ID/fonts/test/Test-Regular.ttf")" = "$sum_ttf" ]
+check "the subset keeps the font's name table, with its licence text" \
+  python3 -c "import sys; from fontTools.ttLib import TTFont; n = TTFont(sys.argv[1])['name']; sys.exit(0 if n.getDebugName(1) == 'Test Sans' else 1)" "$WEBF"
+brand tokens
+check "after --write the generated files, WOFF2 included, are up to date" code 0
+printf 'not a font' >"$WEBF"; brand tokens
+check "a WOFF2 that does not hold the font's subset makes the check fail" code 1
+check "and names the file" says "$T/out" "Test-Regular.woff2: out of date with the font and tokens.json"
+brand tokens --write; brand tokens
+check "--write makes it again" code 0
+check "the fonts and type checks read the original, not the WOFF2" quiet_about "$T/out" "woff2"
+brand fonts
+check "the font licence check ignores the web folder" code 0
+tweak "t['languages'] = ['pt', 'xx']"; brand tokens --write
+check "a language with no list of characters keeps every glyph: the font is converted, not subset" woff_has "$WEBF" "$CYR"
+FONT_CHARS="$ASCII" font "$ID/fonts/test/Test-Variable.ttf" "Test Sans" 0 "" "" variable; tweak "t['languages'] = ['en']"; brand tokens --write
+check "a variable font keeps its weight axis in the WOFF2" \
+  python3 -c "import sys; from fontTools.ttLib import TTFont; f = TTFont(sys.argv[1]); sys.exit(0 if 'fvar' in f else 1)" "$ID/fonts/test/web/Test-Variable.woff2"
+check "and fonts.css gives its range" says "$ID/fonts.css" 'font-weight: 100 900;'
 fresh
 
 exit "$fail"
