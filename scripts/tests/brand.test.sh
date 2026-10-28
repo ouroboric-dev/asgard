@@ -914,6 +914,65 @@ printf '{"step": "foundations", "choice": {"f-radius": "round", "f-motion": "liv
 check "a saved choice is restored" check_page "$FP"
 check "and says so" says "$C.cp.out" "reopens on the saved choice"
 
+# The reference (design system tasks DS-T13): the design system as products build it, generated from the tokens.
+use ref; REFD="$C/$ID_REL/reference"; TK="$C/$ID_REL/tokens.json"; fx palette "$TK"; fx font "$TK" "$C/$ID_REL/fonts/test" "Test Serif" ttf; fx draw mark "$SRC/logo.png"
+(cd "$C" && "$PY" -I .ouroboric/checks/brand.py tokens --write >/dev/null); logo
+refp() { "$BRAND" reference "$C" >"$C.ref.out" 2>&1; echo $? >"$C.ref.code"; }
+# shellcheck disable=SC2329
+refcode() { [ "$(cat "$C.ref.code")" = "$1" ]; }
+# shellcheck disable=SC2329
+only_variables() { ! grep -vE '^\s*(/\*|\*)' "$1" | grep -qiE '#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|font-family: *[^v ]|font-family: *"'; }
+# shellcheck disable=SC2329
+sizes_are_recipe_constants() { ! grep -vE '^\s*(/\*|\*)' "$1" | grep -oE '[0-9]+(\.[0-9]+)?px' | grep -vxE '0px|1px|1\.5px|3px|22px' | grep -q .; }
+# shellcheck disable=SC2329
+vars_are_defined() { python3 - "$1" "$2" <<'PY'
+import re, sys
+css, tokens = (open(p, encoding="utf-8").read() for p in sys.argv[1:])
+used = set(re.findall(r"var\((--[a-z0-9-]+)", css)); local = set(re.findall(r"(--[a-z0-9-]+)\s*:", css)); defined = set(re.findall(r"(--[a-z0-9-]+)\s*:", tokens))
+missing = sorted(used - defined - local); print("missing:", missing) if missing else None; sys.exit(1 if missing else 0)
+PY
+}
+refp
+check "reference writes the component stylesheet, the page and the screenshots" refcode 0
+check "components.css holds no literal colour and no font name: only variables of tokens.css" only_variables "$REFD/components.css"
+check "and no size but the recipes' own constants (a 1 px border, a 3 px bar, a 22 px icon)" sizes_are_recipe_constants "$REFD/components.css"
+check "every variable it uses is one that tokens.css defines" vars_are_defined "$REFD/components.css" "$C/$ID_REL/tokens.css"
+for v in 'data-variant="filled"' 'data-variant="outlined"' 'data-variant="soft"' 'data-variant="underlined"' 'data-variant="colour"' 'data-variant="bordered"' 'data-variant="raised"' 'data-variant="tint"' 'data-variant="bar"' 'data-variant="centre"' 'data-variant="framed"' 'data-variant="rounded"'; do
+  check "components.css has the variant $v" says "$REFD/components.css" "$v"
+done
+check "and each component's states: hover, active, focus-visible, disabled" says_all "$REFD/components.css" ":hover" ":active" ":focus-visible" '\[aria-disabled="true"\]'
+check "the stylesheet says it is generated and must not be edited" says "$REFD/components.css" "Generated from tokens.json"
+check "it loads nothing from the network" lacks_text "$REFD/playground.html" 'src="http'
+check "it has no way to save: the choice is made, the page is for looking" lacks_text "$REFD/playground.html" "Save my choice"
+check "it shows every variant of every component" fx browse "$REFD/playground.html" 'document.querySelectorAll("[data-variant]").length >= 20'
+check "its fonts load" fx browse "$REFD/playground.html" 'document.fonts.ready.then(() => Array.from(document.fonts).every(f => f.status === "loaded"))'
+for m in light dark; do for w in 390 820 1280; do
+  check "the screenshot $m at $w pixels is there and has something drawn" fx ink "$REFD/screenshots/$m-$w.png"
+done; done
+check "the 1280 screenshot is 1280 pixels wide" fx width "$REFD/screenshots/light-1280.png" 1280
+check "the generated files name no tool" names_pass "$C"
+check "the pages build strictly with the reference in the docs" builds "$C"
+brand_ref() { (cd "$C" && "$PY" -I .ouroboric/checks/brand.py reference-fresh >"$C.rf.out" 2>&1); echo $? >"$C.rf.code"; }
+# shellcheck disable=SC2329
+rfcode() { [ "$(cat "$C.rf.code")" = "$1" ]; }
+brand_ref
+check "brand.py finds the reference fresh right after it is made" rfcode 0
+sums="$(cd "$REFD" && sha256sum components.css playground.html)"; refp
+check "a second run writes byte-identical stylesheet and page" [ "$(cd "$REFD" && sha256sum components.css playground.html)" = "$sums" ]
+python3 - "$TK" <<'PY'
+import json, sys
+t = json.load(open(sys.argv[1])); t["radius"]["lg"] = 12; json.dump(t, open(sys.argv[1], "w"), indent=2)
+PY
+(cd "$C" && "$PY" -I .ouroboric/checks/brand.py tokens --write >/dev/null); brand_ref
+check "when a token changes, brand.py reports the reference stale" rfcode 1
+check "and says to make it again" says "$C.rf.out" "reference: out of date with its inputs"
+refp; brand_ref
+check "making it again makes it fresh" rfcode 0
+check "the company's own check runs the reference freshness too" says "$C.rf.out" "reference"
+use refnone; (cd "$C" && python3 .ouroboric/checks/brand.py reference-fresh >"$C.rf.out" 2>&1); echo $? >"$C.rf.code"
+check "a company with no reference yet passes: there is nothing to compare" rfcode 0
+check "reference refuses a company with no palette, with code 2" [ "$("$BRAND" reference "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
+
 # The playground (design system tasks DS-T11): the last look at everything together, then the export that brand.py validates.
 play() { ASGARD_FACES="$T/faces.json" ASGARD_FONTS_BASE="file://$TLIB" ASGARD_FONTS_DIR="$TDL" "$BRAND" playground "$@" >"$C.pl.out" 2>&1; echo $? >"$C.pl.code"; }
 # shellcheck disable=SC2329
