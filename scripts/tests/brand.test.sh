@@ -11,6 +11,8 @@ fail=0
 check() { local d="$1"; shift; if "$@"; then echo "ok   $d"; else echo "FAIL $d"; fail=1; fi; }
 # shellcheck disable=SC2329 # these run through check
 says() { grep -q -- "$2" "$1"; }
+# shellcheck disable=SC2329
+lacks_text() { ! grep -q -- "$2" "$1"; }
 
 "$NEW" --name "Example Studio" --date 2026-10-27 "$T/a" >/dev/null 2>&1
 git -C "$T/a" init -q -b main
@@ -63,7 +65,7 @@ done; }
 # shellcheck disable=SC2329
 only_logo_changed() { ! git -C "$1" status --porcelain | grep -qv 'docs/7-branding/identity/logo/'; }
 # shellcheck disable=SC2329
-only_choices_changed() { ! git -C "$1" status --porcelain | grep -qv '.ouroboric/choices/'; }
+only_choices_changed() { ! git -C "$1" status --porcelain | grep -qv 'identity/choices/'; }
 # shellcheck disable=SC2329
 names_pass() { (cd "$1" && .ouroboric/checks/names-check.sh); }
 logo_sums() { (cd "$L" && find . -type f ! -path './source/*' -exec sha256sum {} + | sort); }
@@ -294,7 +296,7 @@ check "no exception is stated" says "$C/$ID_REL/board.md" "No exception is kept"
 # The typography tool (design system tasks DS-T05): candidate faces fetched from the library, their facts read from the
 # files. The library is a folder here, reached through file://; nothing is fetched from the network.
 use fonts1
-LIB="$T/library"; DL="$T/downloads"; FACTS="$C/.ouroboric/choices/fonts-facts.json"
+LIB="$T/library"; DL="$T/downloads"; FACTS="$C/docs/7-branding/identity/choices/fonts-facts.json"
 PTX="e1,e0,e2,e3,e7,e9,ea,ed,f3,f4,f5,fa,fc,c1,c0,c2,c3,c7,c9,ca,cd,d3,d4,d5,da,dc"
 fx face "$LIB/plainsans" "Plain Sans" "PlainSans-Regular.ttf" "-" 400 0 - ofl
 fx face "$LIB/slantserif" "Slant Serif" "SlantSerif-Regular.ttf" "-" 400 0 - ofl
@@ -343,7 +345,8 @@ check "a known open licence is named by its SPDX id" fx json "$FACTS" 'd["candid
 check "a licence the tool does not know has no id, and is flagged for a person" \
   fx json "$FACTS" 'd["candidates"][3]["licence"]["spdx"] is None and any("licence" in x for x in d["candidates"][3]["notes"])'
 check "the candidates file's own fields travel with the facts" fx json "$FACTS" 'd["candidates"][0]["group"] == "serious"'
-check "the folder to copy from is named" fx json "$FACTS" 'd["candidates"][0]["folder"].endswith("plainsans")'
+check "the library folder to copy from is named" fx json "$FACTS" 'd["candidates"][0]["dir"] == "plainsans"'
+check "the facts hold no path of this machine" lacks_text "$FACTS" "$DL"
 check "fonts writes nothing else in the company" only_choices_changed "$C"
 check "the names check passes after fonts" names_pass "$C"
 sum1="$(sha256sum "$FACTS")"; fontsrun
@@ -351,7 +354,7 @@ check "a second run writes the same facts" [ "$(sha256sum "$FACTS")" = "$sum1" ]
 ASGARD_FONTS_BASE="file://$T/nowhere" ASGARD_FONTS_DIR="$DL" "$BRAND" fonts "$C" "$T/candidates.json" >"$C.fonts.out" 2>&1; echo $? >"$C.fonts.code"
 check "a second run needs no library: the downloads are kept" fcode 0
 
-use fonts2; FACTS="$C/.ouroboric/choices/fonts-facts.json"
+use fonts2; FACTS="$C/docs/7-branding/identity/choices/fonts-facts.json"
 python3 - "$T/candidates-bad.json" <<'PY'
 import json, sys
 json.dump({"candidates": [{"id": "a", "family": "Plain Sans", "dir": "plainsans", "files": ["PlainSans-Regular.ttf"]},
@@ -378,7 +381,7 @@ ASGARD_FONTS_BASE="http://example.org/ofl" ASGARD_FONTS_DIR="$DL2" "$BRAND" font
 check "a library address that is not https or a local folder is refused" fcode 2
 check "fonts without a candidates file is refused" [ "$("$BRAND" fonts "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
 # Palette rounds (design system tasks DS-T06): every preset is checked with the company's contrast rules before it is shown.
-use rounds; RF="$C/.ouroboric/choices/palette-round-1.json"; ROUND="$T/round.json"
+use rounds; RF="$C/docs/7-branding/identity/choices/palette-round-1.json"; ROUND="$T/round.json"
 paletteround() { "$BRAND" palette "$C" "$ROUND" >"$C.round.out" 2>&1; echo $? >"$C.round.code"; }
 # shellcheck disable=SC2329
 rcode() { [ "$(cat "$C.round.code")" = "$1" ]; }
@@ -424,7 +427,7 @@ check "a fourth round is refused: the agent asks what is missing" says "$C.round
 check "palette without a round file is refused" [ "$("$BRAND" palette "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
 
 # Logo preparation (design system tasks DS-T07): cut out, flatten, enlarge.
-use prep; PREP="$C/.ouroboric/choices/logo-prep"
+use prep; PREP="$C/docs/7-branding/identity/choices/logo-prep"
 prep() { local flag=(); if [ "$1" = "--mark" ]; then flag=(--mark); shift; fi
   "$BRAND" logo-prep ${flag[@]+"${flag[@]}"} "$C" "$1" >"$C.prep.out" 2>&1; echo $? >"$C.prep.code"; }
 # shellcheck disable=SC2329
@@ -462,13 +465,13 @@ check "logo-prep writes nothing outside the choices folder" only_choices_changed
 # a mark of long arcs: at 1400 pixels the trace cuts them short; prepared at 2400 or more, it is faithful
 use arcs1400; fx arcs "$SRC/logo.png" flat; logo
 check "a mark of long arcs at 1400 pixels is not traced faithfully" trace 't["modes"]["light"]["mismatch"] > 0.01'
-use arcsprep; PREP="$C/.ouroboric/choices/logo-prep"; fx arcs "$T/arcs-mark.png"; prep --mark "$T/arcs-mark.png"
+use arcsprep; PREP="$C/docs/7-branding/identity/choices/logo-prep"; fx arcs "$T/arcs-mark.png"; prep --mark "$T/arcs-mark.png"
 check "a mark is enlarged to at least 2400 pixels on its short side" fx short "$PREP/arcs-mark.png" 2400
 cp "$PREP/arcs-mark.png" "$SRC/logo.png"; logo
 check "the same mark, prepared, traces faithfully" trace 't["modes"]["light"]["mismatch"] <= 0.01'
 
 # Logo proposals (design system tasks DS-T07): the review page, and the chosen design as source PNGs.
-use props; PD="$C/.ouroboric/choices"; PAGE="$PD/logo-proposals.html"
+use props; PD="$C/docs/7-branding/identity/choices"; PAGE="$PD/logo-proposals.html"
 PLIB="$T/proplib"; PDL="$T/propdl"
 LET="$(python3 -c 'print(",".join("%x" % c for c in list(range(0x41, 0x5b)) + list(range(0x61, 0x7b)) + [0x20]))')"
 fx face "$PLIB/plainface" "Plain Face" "PlainFace-Regular.ttf" "$LET" 400 0 - ofl
@@ -490,15 +493,15 @@ python3 - "$T/prop.json" <<'PY'
 import json, sys
 json.dump({"name": "Example Studio", "faces": ["plain", "ring", "narrow", "script", "part"], "alternatives": [
     {"id": "drawn", "name": "As drawn", "strength": "Keeps the concept exactly", "risk": "The lettering is not a real typeface",
-     "fails_at": 24, "image": ".ouroboric/choices/concept/wide.png", "mark": ".ouroboric/choices/concept/mark.png", "lettering": False},
+     "fails_at": 24, "image": "docs/7-branding/identity/choices/concept/wide.png", "mark": "docs/7-branding/identity/choices/concept/mark.png", "lettering": False},
     {"id": "named", "name": "Mark beside the name", "strength": "The mark works alone as the favicon",
-     "risk": "The name is long at small sizes", "fails_at": 32, "mark": ".ouroboric/choices/concept/mark.png",
+     "risk": "The name is long at small sizes", "fails_at": 32, "mark": "docs/7-branding/identity/choices/concept/mark.png",
      "lettering": True, "layout": "beside", "symbol_in": "o"},
     {"id": "swap", "name": "Mark above the name", "strength": "Compact", "risk": "A letter is replaced by the mark",
-     "mark": ".ouroboric/choices/concept/mark.png", "lettering": True, "layout": "above", "replaces_letter": "i",
+     "mark": "docs/7-branding/identity/choices/concept/mark.png", "lettering": True, "layout": "above", "replaces_letter": "i",
      "poor_fit": {"ring": "The agent's own note about this pairing"}}]}, open(sys.argv[1], "w"))
 PY
-proposals() { "$BRAND" logo-proposals "$@" >"$C.prop.out" 2>&1; echo $? >"$C.prop.code"; }
+proposals() { ASGARD_FONTS_DIR="$PDL" "$BRAND" logo-proposals "$@" >"$C.prop.out" 2>&1; echo $? >"$C.prop.code"; }
 # shellcheck disable=SC2329
 ppcode() { [ "$(cat "$C.prop.code")" = "$1" ]; }
 proposals "$C" "$T/prop.json"
@@ -526,12 +529,15 @@ check "an alternative with no lettering has no pairing notes" fx page "$PAGE" 'a
 check "a pairing with a note is not hidden: the picker still offers the face" fx page "$PAGE" 'any(f["id"] == "part" for f in d["faces"])'
 check "the page is written only in the choices folder" only_choices_changed "$C"
 check "the names check passes" names_pass "$C"
+check "the generated page is not committed: the company's ignore file holds it back" git -C "$C" check-ignore -q "$PAGE"
+check "the pages build strictly with the choices in the docs" builds "$C"
+check "and the docs check passes" docs_pass "$C"
 sum1="$(sha256sum "$PAGE")"; proposals "$C" "$T/prop.json"
 check "a second run writes the same page" [ "$(sha256sum "$PAGE")" = "$sum1" ]
 cp "$T/prop.json" "$T/prop-bad.json"; sed -i 's/"ring", "narrow"/"ring", "ghost"/' "$T/prop-bad.json"; proposals "$C" "$T/prop-bad.json"
 check "a face that is not in the fonts' facts is refused" ppcode 2
 check "and named, with the command that makes the facts" says "$C.prop.out" "ghost"
-sed 's#.ouroboric/choices/concept/mark.png#../../../etc/passwd#' "$T/prop.json" >"$T/prop-evil.json"; proposals "$C" "$T/prop-evil.json"
+sed 's#docs/7-branding/identity/choices/concept/mark.png#../../../etc/passwd#' "$T/prop.json" >"$T/prop-evil.json"; proposals "$C" "$T/prop-evil.json"
 check "an image outside the company folder is refused" ppcode 2
 python3 - "$T/prop.json" "$T/prop-noname.json" <<'PY'
 import json, sys
@@ -542,7 +548,7 @@ check "an alternative without its strength is refused" ppcode 2
 check "logo-proposals without a candidates file is refused" [ "$("$BRAND" logo-proposals "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
 
 # The chosen design becomes the logo's source PNGs, in the palette's text and accent colours.
-use props2; PD="$C/.ouroboric/choices"; TK="$C/$ID_REL/tokens.json"; fx palette "$TK"
+use props2; PD="$C/docs/7-branding/identity/choices"; TK="$C/$ID_REL/tokens.json"; fx palette "$TK"
 mkdir -p "$PD/concept"; fx draw mark "$PD/concept/mark.png"; fx draw wide "$PD/concept/wide.png"
 ASGARD_FONTS_BASE="file://$PLIB" ASGARD_FONTS_DIR="$PDL" "$BRAND" fonts "$C" "$T/prop-fonts.json" >/dev/null 2>&1
 proposals "$C" "$T/prop.json" --choose named:ring

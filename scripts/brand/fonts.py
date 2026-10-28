@@ -9,7 +9,8 @@ field travels into the facts. The facts come from the files, never from the cand
 file is reported without italic whatever the candidates file claims.
 
 The library is ASGARD_FONTS_BASE (default the Google Fonts repository's ofl/ folder; https, or a local folder as
-file://). Downloads are kept in ASGARD_FONTS_DIR (default the cache folder) and used again without the network.
+file://). Downloads are kept in ASGARD_FONTS_DIR (default the cache folder) and used again without the network. The facts hold
+no path of this machine: they are committed with the company's files, and a company's files name no tool.
 """
 import hashlib
 import json
@@ -24,7 +25,7 @@ LICENCES = ("OFL.txt", "LICENSE.txt", "UFL.txt")
 FILE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.,\[\]-]*\.(ttf|otf|woff2)$")
 DIR_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 LIMIT = 40 * 1024 * 1024
-OUT = ".ouroboric/choices/fonts-facts.json"
+OUT = "docs/7-branding/identity/choices/fonts-facts.json"
 
 
 class Refused(Exception):
@@ -88,7 +89,6 @@ def facts_for(brand, cand, base, root, languages):
     notes = []
     fonts = [brand.open_font(p) for p in paths]
     facts = {k: v for k, v in cand.items() if k not in ("files", "italic")}
-    facts["folder"] = folder
     facts["files"] = []
     ranges, statics = set(), set()
     for name, path, font in zip(names, paths, fonts):

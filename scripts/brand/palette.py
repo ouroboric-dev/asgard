@@ -5,7 +5,7 @@ before it is shown, and a failing preset refuses the round.
 
 ROUND.json: {"round": 1, "presets": [{"id": "calm", "name": "Calm blue", "light": {...}, "dark": {...}}]}. Each mode
 holds every colour token (#RRGGBB) and, for each brand token (brand-1, ...), a value in both modes. The result is
-DIR/.ouroboric/choices/palette-round-<round>.json, which the palette page reads; nothing is written for a refused round.
+DIR/docs/7-branding/identity/choices/palette-round-<round>.json, which the palette page reads; nothing is written for a refused round.
 """
 import json
 import os
@@ -13,7 +13,7 @@ import re
 import sys
 
 MAX_PRESETS, MAX_ROUNDS = 4, 3
-OUT = ".ouroboric/choices/palette-round-{}.json"
+OUT = "docs/7-branding/identity/choices/palette-round-{}.json"
 
 
 def main(argv):
