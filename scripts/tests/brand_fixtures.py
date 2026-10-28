@@ -442,6 +442,8 @@ def main(args):
         import re
         shown = int(re.search(r'width="(\d+)"', open(args[1], encoding="utf-8").read()).group(1))
         return 0 if Image.open(args[2]).width == 2 * shown else 1
+    elif cmd == "width":  # width PNG N: the image is N pixels wide
+        return 0 if Image.open(args[1]).width == int(args[2]) else 1
     elif cmd == "size":  # size PNG WxH
         return 0 if "x".join(map(str, Image.open(args[1]).size)) == args[2] else 1
     elif cmd == "ink":

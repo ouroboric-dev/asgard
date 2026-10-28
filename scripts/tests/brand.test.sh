@@ -945,7 +945,7 @@ check "its fonts load" fx browse "$REFD/playground.html" 'document.fonts.ready.t
 for m in light dark; do for w in 390 820 1280; do
   check "the screenshot $m at $w pixels is there and has something drawn" fx ink "$REFD/screenshots/$m-$w.png"
 done; done
-check "the 1280 screenshot is 1280 pixels wide" fx size "$REFD/screenshots/light-1280.png" 1280x"$(python3 -c "from PIL import Image; print(Image.open('$REFD/screenshots/light-1280.png').size[1])")"
+check "the 1280 screenshot is 1280 pixels wide" fx width "$REFD/screenshots/light-1280.png" 1280
 check "the generated files name no tool" names_pass "$C"
 check "the pages build strictly with the reference in the docs" builds "$C"
 brand_ref() { (cd "$C" && "$PY" -I .ouroboric/checks/brand.py reference-fresh >"$C.rf.out" 2>&1); echo $? >"$C.rf.code"; }
