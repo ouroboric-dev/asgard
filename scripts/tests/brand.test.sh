@@ -423,4 +423,148 @@ fx round "$ROUND" round4; paletteround
 check "a fourth round is refused: the agent asks what is missing" says "$C.round.out" "three rounds"
 check "palette without a round file is refused" [ "$("$BRAND" palette "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
 
+# Logo preparation (design system tasks DS-T07): cut out, flatten, enlarge.
+use prep; PREP="$C/.ouroboric/choices/logo-prep"
+prep() { local flag=(); if [ "$1" = "--mark" ]; then flag=(--mark); shift; fi
+  "$BRAND" logo-prep ${flag[@]+"${flag[@]}"} "$C" "$1" >"$C.prep.out" 2>&1; echo $? >"$C.prep.code"; }
+# shellcheck disable=SC2329
+pcode() { [ "$(cat "$C.prep.code")" = "$1" ]; }
+fx draw opaque "$T/opaque.png"; prep "$T/opaque.png"
+check "logo-prep takes an image on an opaque flat background and writes a prepared PNG" pcode 0
+check "in the choices folder, named after the image" test -f "$PREP/opaque.png"
+check "the background is cut out: the corners are transparent" fx clear-corners "$PREP/opaque.png"
+check "the short side is at least 1000 pixels" fx short "$PREP/opaque.png" 1000
+fx arcs "$T/arcs.png"; prep "$T/arcs.png"
+check "an anti-aliased image is flattened to its flat colours, with a binary alpha" fx colours "$PREP/arcs.png" 2
+check "its facts are written beside it, with the colours found" fx json "$PREP/arcs.json" 'len(d["colours"]) == 2 and d["background"]["from"] == "removed"'
+check "and the scale used" fx json "$PREP/arcs.json" 'd["scale"] >= 1 and d["output"]["short_side"] >= 1000'
+sum1="$(sha256sum "$PREP/arcs.png")"; prep "$T/arcs.png"
+check "a second run writes the same image" [ "$(sha256sum "$PREP/arcs.png")" = "$sum1" ]
+fx draw mark "$T/transparent.png"; prep "$T/transparent.png"
+check "an image that is already transparent keeps its transparency" fx clear-corners "$PREP/transparent.png"
+check "and says its background was given" fx json "$PREP/transparent.json" 'd["background"]["from"] == "given"'
+fx jpeg "$T/photo.jpg"; prep "$T/photo.jpg"
+check "a JPEG is accepted, by its first bytes" pcode 0
+check "and its compression noise is flattened away" fx colours "$PREP/photo.png" 2
+fx photo "$T/small.png" 200; prep "$T/small.png"
+check "an image under 256 pixels is refused, with code 2" pcode 2
+fx noisy "$T/noisy.png"; prep "$T/noisy.png"
+check "a background that is not one flat colour is refused" pcode 2
+check "and says so" says "$C.prep.out" "flat colour"
+fx blank "$T/blank.png"; prep "$T/blank.png"
+check "an image with nothing but a background is refused" pcode 2
+printf 'not an image' >"$T/text.png"; prep "$T/text.png"
+check "a file that is not an image is refused" pcode 2
+fx draw huge "$T/huge.png"; prep "$T/huge.png"
+check "an image over 8192 pixels is refused" pcode 2
+check "logo-prep without an image is refused" [ "$("$BRAND" logo-prep "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
+check "logo-prep writes nothing outside the choices folder" only_choices_changed "$C"
+# a mark of long arcs: at 1400 pixels the trace cuts them short; prepared at 2400 or more, it is faithful
+use arcs1400; fx arcs "$SRC/logo.png" flat; logo
+check "a mark of long arcs at 1400 pixels is not traced faithfully" trace 't["modes"]["light"]["mismatch"] > 0.01'
+use arcsprep; PREP="$C/.ouroboric/choices/logo-prep"; fx arcs "$T/arcs-mark.png"; prep --mark "$T/arcs-mark.png"
+check "a mark is enlarged to at least 2400 pixels on its short side" fx short "$PREP/arcs-mark.png" 2400
+cp "$PREP/arcs-mark.png" "$SRC/logo.png"; logo
+check "the same mark, prepared, traces faithfully" trace 't["modes"]["light"]["mismatch"] <= 0.01'
+
+# Logo proposals (design system tasks DS-T07): the review page, and the chosen design as source PNGs.
+use props; PD="$C/.ouroboric/choices"; PAGE="$PD/logo-proposals.html"
+PLIB="$T/proplib"; PDL="$T/propdl"
+LET="$(python3 -c 'print(",".join("%x" % c for c in list(range(0x41, 0x5b)) + list(range(0x61, 0x7b)) + [0x20]))')"
+fx face "$PLIB/plainface" "Plain Face" "PlainFace-Regular.ttf" "$LET" 400 0 - ofl
+fx face "$PLIB/ringface" "Ring Face" "RingFace-Regular.ttf" "$LET" 400 0 - ofl ring
+fx face "$PLIB/narrowface" "Narrow Face" "NarrowFace-Regular.ttf" "$LET" 400 0 - ofl narrow
+fx face "$PLIB/scriptface" "Script Face" "ScriptFace-Regular.ttf" "$LET" 400 0 - ofl
+fx face "$PLIB/partface" "Part Face" "PartFace-Regular.ttf" "41,42,43" 400 0 - ofl
+python3 - "$T/prop-fonts.json" <<'PY'
+import json, sys
+def c(i, name, group, **kw):
+    return {"id": i, "family": name, "dir": i + "face", "files": [name.replace(" ", "") + "-Regular.ttf"], "group": group, **kw}
+json.dump({"languages": ["en"], "candidates": [c("plain", "Plain Face", "serious"), c("ring", "Ring Face", "serious"),
+    c("narrow", "Narrow Face", "serious"), c("script", "Script Face", "stylised", joined=True),
+    c("part", "Part Face", "stylised")]}, open(sys.argv[1], "w"))
+PY
+ASGARD_FONTS_BASE="file://$PLIB" ASGARD_FONTS_DIR="$PDL" "$BRAND" fonts "$C" "$T/prop-fonts.json" >/dev/null 2>&1
+mkdir -p "$PD/concept"; fx draw mark "$PD/concept/mark.png"; fx draw wide "$PD/concept/wide.png"
+python3 - "$T/prop.json" <<'PY'
+import json, sys
+json.dump({"name": "Example Studio", "faces": ["plain", "ring", "narrow", "script", "part"], "alternatives": [
+    {"id": "drawn", "name": "As drawn", "strength": "Keeps the concept exactly", "risk": "The lettering is not a real typeface",
+     "fails_at": 24, "image": ".ouroboric/choices/concept/wide.png", "mark": ".ouroboric/choices/concept/mark.png", "lettering": False},
+    {"id": "named", "name": "Mark beside the name", "strength": "The mark works alone as the favicon",
+     "risk": "The name is long at small sizes", "fails_at": 32, "mark": ".ouroboric/choices/concept/mark.png",
+     "lettering": True, "layout": "beside", "symbol_in": "o"},
+    {"id": "swap", "name": "Mark above the name", "strength": "Compact", "risk": "A letter is replaced by the mark",
+     "mark": ".ouroboric/choices/concept/mark.png", "lettering": True, "layout": "above", "replaces_letter": "i",
+     "poor_fit": {"ring": "The agent's own note about this pairing"}}]}, open(sys.argv[1], "w"))
+PY
+proposals() { "$BRAND" logo-proposals "$@" >"$C.prop.out" 2>&1; echo $? >"$C.prop.code"; }
+# shellcheck disable=SC2329
+ppcode() { [ "$(cat "$C.prop.code")" = "$1" ]; }
+proposals "$C" "$T/prop.json"
+check "logo-proposals writes the review page" ppcode 0
+check "in the choices folder" test -f "$PAGE"
+check "with a panel for each alternative, with its name, strength and risk" \
+  fx page "$PAGE" 'all(a["id"] in html and a["name"] in html and a["strength"] in html and a["risk"] in html for a in d["alternatives"])'
+check "the page says where each alternative fails, when it does" fx page "$PAGE" '"24" in html and "fails" in html'
+check "it has a lettering picker with a serious and a stylised group" \
+  fx page "$PAGE" '"Serious" in html and "Stylised" in html and len(d["faces"]) == 5'
+check "each face shows its licence" fx page "$PAGE" 'all(f["licence"] == "OFL-1.1" for f in d["faces"])'
+check "each alternative has the logo in a light and a dark row at four sizes" \
+  fx page "$PAGE" 'all(len(d["images"][a["id"]][f["id"]]["light"]) > 100 and len(d["images"][a["id"]][f["id"]]["dark"]) > 100 for a in d["alternatives"] for f in d["faces"])'
+check "and the mark at its sizes, with the enlarged 16" fx page "$PAGE" 'all(len(d["marks"][a["id"]]["light"]) > 100 for a in d["alternatives"])'
+check "the page needs no network: no address in it" fx page "$PAGE" '"http" not in html'
+check "a pairing the face cannot set carries a note: the characters it lacks" \
+  fx page "$PAGE" 'any("lacks" in n for n in d["notes"]["named"]["part"])'
+check "a symbol in the counter of a narrow o carries a note" \
+  fx page "$PAGE" 'any("counter" in n for n in d["notes"]["named"]["narrow"])'
+check "and a wide counter does not" fx page "$PAGE" 'not any("counter" in n for n in d["notes"]["named"]["ring"])'
+check "a letter replaced in a joined face carries a note" \
+  fx page "$PAGE" 'any("joined" in n for n in d["notes"]["swap"]["script"])'
+check "the agent's own note for a pairing is shown" fx page "$PAGE" 'any("own note" in n for n in d["notes"]["swap"]["ring"])'
+check "an alternative with no lettering has no pairing notes" fx page "$PAGE" 'all(d["notes"]["drawn"][f["id"]] == [] for f in d["faces"])'
+check "a pairing with a note is not hidden: the picker still offers the face" fx page "$PAGE" 'any(f["id"] == "part" for f in d["faces"])'
+check "the page is written only in the choices folder" only_choices_changed "$C"
+check "the names check passes" names_pass "$C"
+sum1="$(sha256sum "$PAGE")"; proposals "$C" "$T/prop.json"
+check "a second run writes the same page" [ "$(sha256sum "$PAGE")" = "$sum1" ]
+cp "$T/prop.json" "$T/prop-bad.json"; sed -i 's/"ring", "narrow"/"ring", "ghost"/' "$T/prop-bad.json"; proposals "$C" "$T/prop-bad.json"
+check "a face that is not in the fonts' facts is refused" ppcode 2
+check "and named, with the command that makes the facts" says "$C.prop.out" "ghost"
+sed 's#.ouroboric/choices/concept/mark.png#../../../etc/passwd#' "$T/prop.json" >"$T/prop-evil.json"; proposals "$C" "$T/prop-evil.json"
+check "an image outside the company folder is refused" ppcode 2
+python3 - "$T/prop.json" "$T/prop-noname.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1])); del d["alternatives"][0]["strength"]; json.dump(d, open(sys.argv[2], "w"))
+PY
+proposals "$C" "$T/prop-noname.json"
+check "an alternative without its strength is refused" ppcode 2
+check "logo-proposals without a candidates file is refused" [ "$("$BRAND" logo-proposals "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
+
+# The chosen design becomes the logo's source PNGs, in the palette's text and accent colours.
+use props2; PD="$C/.ouroboric/choices"; TK="$C/$ID_REL/tokens.json"; fx palette "$TK"
+mkdir -p "$PD/concept"; fx draw mark "$PD/concept/mark.png"; fx draw wide "$PD/concept/wide.png"
+ASGARD_FONTS_BASE="file://$PLIB" ASGARD_FONTS_DIR="$PDL" "$BRAND" fonts "$C" "$T/prop-fonts.json" >/dev/null 2>&1
+proposals "$C" "$T/prop.json" --choose named:ring
+check "--choose writes the chosen design as source PNGs" ppcode 0
+check "the logo for light backgrounds" test -f "$SRC/logo.png"
+check "and for dark backgrounds" test -f "$SRC/logo-dark.png"
+check "and the mark" test -f "$SRC/mark.png"
+check "each reaches 1000 pixels on its short side" fx short "$SRC/logo.png" 1000
+check "the light logo is drawn in the palette's text colour" fx has-colour "$SRC/logo.png" "#1A1A1A"
+check "and its accent colour" fx has-colour "$SRC/logo.png" "#0B5FCC"
+check "the dark logo is drawn in the dark palette's text colour" fx has-colour "$SRC/logo-dark.png" "#EDEDED"
+check "the choice is recorded, with the typeface for the wordmark role" \
+  fx json "$PD/logo.json" 'd["alternative"] == "named" and d["face"] == "ring" and d["wordmark"]["family"] == "Ring Face" and d["wordmark"]["licence"] == "OFL-1.1"'
+logo
+check "brand.sh logo takes the chosen design" lcode 0
+proposals "$C" "$T/prop.json" --choose drawn
+check "an alternative with no lettering is chosen without a face" ppcode 0
+proposals "$C" "$T/prop.json" --choose named
+check "a lettered alternative needs a face" ppcode 2
+proposals "$C" "$T/prop.json" --choose ghost:ring
+check "an alternative that does not exist is refused" ppcode 2
+proposals "$C" "$T/prop.json" --choose named:ghost
+check "and so is a face that does not" ppcode 2
+
 exit "$fail"

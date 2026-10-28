@@ -4,6 +4,8 @@
 #   brand.sh fonts DIR CANDIDATES  fetch candidate typefaces and their licences, write their facts (uses the network
 #                                  for files not yet downloaded; the facts go to DIR/.ouroboric/choices/)
 #   brand.sh palette DIR ROUND     check every preset of a palette round with the company's contrast rules
+#   brand.sh logo-prep [--mark] DIR IMAGE   cut out, flatten and enlarge the founder's concept
+#   brand.sh logo-proposals DIR CANDIDATES [--choose ALT[:FACE]]   the logo review page; the chosen design as source PNGs
 #   brand.sh logo DIR              trace, recolour, derive, export and check the logo of the company in DIR
 #   brand.sh board [--check] DIR   write DIR/docs/7-branding/identity/board.md; --check fails when it is stale
 # The environment lives in ${XDG_CACHE_HOME:-$HOME/.cache}/asgard/brand/<key>, where <key> is a hash of
@@ -90,6 +92,14 @@ case "$cmd" in
     check=""; [ "${1:-}" = "--check" ] && { check="--check"; shift; }
     [ $# -eq 1 ] || die "usage: brand.sh board [--check] DIR"
     exec "$ENV/venv/bin/python" -I -B "$LIB/board.py" --resvg "$ENV/bin/resvg" $check "$1" ;;
+  logo-prep)
+    need_env
+    [ $# -ge 2 ] && [ $# -le 3 ] || die "usage: brand.sh logo-prep [--mark] DIR IMAGE"
+    exec "$ENV/venv/bin/python" -I -B "$LIB/logoprep.py" "$@" ;;
+  logo-proposals)
+    need_env
+    [ $# -eq 2 ] || { [ $# -eq 4 ] && [ "$3" = "--choose" ]; } || die "usage: brand.sh logo-proposals DIR CANDIDATES.json [--choose ALTERNATIVE[:FACE]]"
+    exec "$ENV/venv/bin/python" -I -B "$LIB/proposals.py" --resvg "$ENV/bin/resvg" "$@" ;;
   fonts)
     need_env
     [ $# -eq 2 ] || die "usage: brand.sh fonts DIR CANDIDATES.json"
@@ -98,5 +108,5 @@ case "$cmd" in
     need_env
     [ $# -eq 2 ] || die "usage: brand.sh palette DIR ROUND.json"
     exec "$ENV/venv/bin/python" -I -B "$LIB/palette.py" "$@" ;;
-  *) die "usage: brand.sh setup | fonts DIR CANDIDATES.json | palette DIR ROUND.json | logo DIR | board [--check] DIR" ;;
+  *) die "usage: brand.sh setup | fonts DIR CANDIDATES.json | palette DIR ROUND.json | logo-prep [--mark] DIR IMAGE | logo-proposals DIR CANDIDATES.json [--choose ALT[:FACE]] | logo DIR | board [--check] DIR" ;;
 esac
