@@ -623,6 +623,103 @@ def tokens_css(tokens):
     return "\n".join(out) + "\n"
 
 
+WEB = "web"
+
+
+def web_path(files, name):
+    """Where the web (WOFF2) form of a shipped font lives, relative to identity/."""
+    return f"{files.rstrip('/')}/{WEB}/{os.path.splitext(name)[0]}.woff2"
+
+
+def web_characters(tokens):
+    """The characters a web font keeps: the clients' languages and Latin-1; None keeps every glyph, for a language
+    this check has no list for or when no language is set."""
+    languages = tokens.get("languages")
+    if not isinstance(languages, list) or not languages:
+        return None
+    keep = {chr(c) for c in range(0xA0, 0x100)}
+    for language in languages:
+        chars = required_characters(language)
+        if chars is None:
+            return None
+        keep.update(chars)
+    return keep
+
+
+def shipped_fonts(tokens):
+    """(spec, source path, web path) for each shipped font file, once."""
+    seen = set()
+    for role in ROLES:
+        spec = ((tokens.get("type") or {}).get("fonts") or {}).get(role) or {}
+        files = spec.get("files")
+        if not spec.get("family") or not files:
+            continue
+        folder = os.path.join(IDENTITY, files)
+        if not os.path.isdir(folder):
+            continue
+        for n in sorted(os.listdir(folder)):
+            rel = f"{files.rstrip('/')}/{n}"
+            if os.path.splitext(n)[1].lower() not in FORMATS or rel in seen:
+                continue
+            seen.add(rel)
+            yield spec, os.path.join(folder, n), os.path.join(IDENTITY, web_path(files, n))
+
+
+def make_web_font(source, target, keep):
+    """Write the WOFF2 form of a font file, subset to `keep` (every glyph when None). The name table stays whole, so
+    the licence text travels with the file."""
+    try:
+        from fontTools import subset
+        from fontTools.ttLib import TTFont
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        if keep is None:
+            font = TTFont(source)
+            font.flavor = "woff2"
+            font.save(target)
+            return
+        options = subset.Options()
+        options.flavor = "woff2"
+        options.layout_features = ["*"]
+        options.name_IDs = ["*"]
+        options.name_languages = ["*"]
+        options.notdef_outline = True
+        font = subset.load_font(source, options)
+        subsetter = subset.Subsetter(options)
+        subsetter.populate(unicodes=sorted(ord(c) for c in keep))
+        subsetter.subset(font)
+        subset.save_font(font, target, options)
+    except ImportError:
+        raise CannotRun("the web fonts need fontTools 4.66.1 and Brotli 1.2.0: "
+                        "pip install fonttools==4.66.1 brotli==1.2.0")
+
+
+def web_font_fresh(source, target, keep):
+    """Does the WOFF2 file hold exactly the glyphs the source keeps?"""
+    if not os.path.isfile(target):
+        return False
+    wanted = set(open_font(source).getBestCmap())
+    if keep is not None:
+        wanted &= {ord(c) for c in keep}
+    try:
+        return set(open_font(target).getBestCmap()) == wanted
+    except Exception:  # a file that is not a font
+        return False
+
+
+def web_fonts(tokens, write):
+    findings = []
+    keep = web_characters(tokens)
+    for _, source, target in shipped_fonts(tokens):
+        if web_font_fresh(source, target, keep):
+            continue
+        if write:
+            make_web_font(source, target, keep)
+            print(f"{target}: written")
+        else:
+            findings.append(f"{target}: out of date with the font and tokens.json; generate it again")
+    return findings
+
+
 def fonts_css(tokens):
     out = ["/* Generated from tokens.json and the font files: do not edit. One @font-face for each shipped font file. */"]
     seen = set()
@@ -641,6 +738,7 @@ def fonts_css(tokens):
                 continue
             seen.add(rel)
             font = open_font(os.path.join(folder, n))
+            web = web_path(files, n)
             # a variable font covers a range of weights: its weight axis, not its default instance
             axes = {a.axisTag: a for a in font["fvar"].axes} if "fvar" in font else {}
             if "wght" in axes:
@@ -649,7 +747,7 @@ def fonts_css(tokens):
                 weight = font["OS/2"].usWeightClass
             italic = bool(font["OS/2"].fsSelection & 1)
             out += ["@font-face {", f'  font-family: "{spec["family"]}";',
-                    f'  src: url("{rel}") format("{FORMATS[ext]}");', f"  font-weight: {weight};",
+                    f'  src: url("{web}") format("woff2");', f"  font-weight: {weight};",
                     f"  font-style: {'italic' if italic else 'normal'};", "  font-display: swap;", "}"]
     return "\n".join(out) + "\n"
 
@@ -671,8 +769,9 @@ def generated(write=False):
             print(f"{path}: written")
         else:
             findings.append(f"{path}: out of date with tokens.json; generate it again")
+    findings += web_fonts(tokens, write)
     if not findings and not write:
-        print("tokens.css and fonts.css are up to date.")
+        print("tokens.css, fonts.css and the web fonts are up to date.")
     for line in findings:
         print(line)
     return 1 if findings else 0
