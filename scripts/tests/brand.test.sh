@@ -708,7 +708,7 @@ check "each preset is a card of its own, shown one at a time, with its mood" \
   fx page "$PG" 'len(d["presets"]) == 3 and all(p["mood"] in html for p in d["presets"]) and html.count("data-view=\"preset\"") == 3'
 check "each colour role has its own card with an explanation in plain words" \
   fx page "$PG" 'all(r in html for r in ("The page background", "Text on a plain background", "The brand colour", "Text on a brand-colour fill"))'
-check "and the card of one role is shown at a time" fx browse "$PG" 'document.querySelectorAll("[data-card]:not([hidden])").length === 1'
+check "and the card of one role is shown at a time" fx browse "$PG" 'Array.from(document.querySelectorAll("[data-card]")).filter(c => getComputedStyle(c).display !== "none").length === 1'
 check "the contrast results are in words, with the ratio and the minimum" \
   fx page "$PG" '"passes" in html and "needs at least 4.5:1" in html'
 check "the logo is shown recoloured by the palette, through masks of its own colours" \
@@ -781,7 +781,7 @@ check "every direction has its own card, with its name and what it feels like" \
   fx page "$TASTE" 'all(x in html for x in ("Clean sans", "Plain and neutral.", "Book serif", "Warm and classic.", "Pen script", "Written by hand."))'
 check "only the faces to start with are on it: width before depth" \
   fx page "$TASTE" 'sorted(f["id"] for f in d["faces"]) == ["bold", "ink", "pen", "plain", "round", "slant"]'
-check "one card is shown at a time" fx browse "$TASTE" 'document.querySelectorAll("[data-card]:not([hidden])").length === 1'
+check "one card is shown at a time" fx browse "$TASTE" 'Array.from(document.querySelectorAll("[data-card]")).filter(c => getComputedStyle(c).display !== "none").length === 1'
 check "a face is shown in her own words, in its own font" fx page "$TASTE" '"Portraits that feel like you" in html and html.count("data:font/woff2;base64") >= 6'
 check "the faces are subset to the words shown, so the page stays small" fx page "$TASTE" 'len(html) < 400000'
 check "so the page fetches nothing" fx page "$TASTE" '"src=\"http" not in html and "url(http" not in html'
@@ -865,5 +865,47 @@ pin --max-files 1 "$T/pin-source.json" "$T/pin-out2.json"
 check "a face with more files than allowed is left out, and said so" says "$T/pin.out" "Slant Face: 2 files"
 check "the review table shows the weights, the italic and the glyphs a language lacks (the fixture lacks the typographic ones)" says_all "$T/pin.out" "| clean | start | Plain Face | 1 |" "| 400 | no |" "en:-"
 check "a face with no italic is shown so in the review table" says "$T/pin.out" "| 1 | .* | 400 | no |"
+
+# The foundations page (design system tasks DS-T16): step 6e, one foundation at a time, each shown and not described.
+use found; CH="$C/$ID_REL/choices"; mkdir -p "$CH"; FP="$CH/foundations.html"
+foundpage() { "$BRAND" foundations-page "$@" >"$C.fp.out" 2>&1; echo $? >"$C.fp.code"; }
+# shellcheck disable=SC2329
+fpcode() { [ "$(cat "$C.fp.code")" = "$1" ]; }
+foundpage "$C"
+check "foundations-page builds the page with its own default candidates" fpcode 0
+check "in the choices folder, ignored by git" test -f "$FP"
+check "the page passes the page check: every candidate of every foundation changes it, light and dark" check_page "$FP"
+check "each foundation has its own card, with why it matters in plain words" \
+  fx page "$FP" 'all(x in html for x in ("Body size", "Type scale", "Line height", "Spacing", "Corners", "Depth", "Motion", "Focus", "Touch size", "Breakpoints"))'
+check "and the cards are shown one at a time" fx browse "$FP" 'Array.from(document.querySelectorAll("[data-card]")).filter(c => getComputedStyle(c).display !== "none").length === 1'
+check "every candidate is shown on the page at once, not described: the body size changes the text" \
+  fx browse "$FP" '(() => { const s = () => getComputedStyle(document.querySelector("#sample-body")).fontSize; const a = s(); document.querySelector("input[name=f-base][value=\"18\"]").click(); return a !== s(); })()'
+check "the corners change the card and the button" \
+  fx browse "$FP" '(() => { const r = () => getComputedStyle(document.querySelector("#sample-card")).borderTopLeftRadius; const a = r(); document.querySelector("input[name=f-radius][value=round]").click(); return a !== r(); })()'
+check "motion is played, and the page says what it does in numbers" \
+  fx browse "$FP" '(() => { document.querySelector("input[name=f-motion][value=lively]").click(); return document.getElementById("motion-words").textContent.includes("320 ms") && document.querySelector("#motion-ball").getAnimations().length > 0; })()'
+check "where the device asks for reduced motion, it is still" fx page "$FP" '"prefers-reduced-motion: reduce" in html'
+check "the breakpoints are a ruler with the usual devices marked and a width slider" \
+  fx browse "$FP" '(() => { document.querySelector("input[name=f-breakpoints][value=photo]").click(); return document.getElementById("ruler").textContent.includes("1440") && document.getElementById("width-slider").type === "range"; })()'
+check "a look sets every foundation at once" \
+  fx browse "$FP" '(() => { document.querySelector("input[name=look][value=playful]").click(); return document.querySelector("input[name=f-radius][value=round]").checked && document.querySelector("input[name=f-motion][value=lively]").checked; })()'
+check "the final choice has the keys of the token contract" \
+  fx browse "$FP" '(() => { const r = window.__choiceResult(); return Array.isArray(r.space) && r.radius.button !== undefined && r.elevation.card !== undefined && r.motion.duration > 0 && r.focus.width >= 2 && r.target >= 24 && Array.isArray(r.breakpoints) && r.type.scale.sizes.body >= 16 && r.type.scale.lineHeight.body >= 1.5; })()'
+check "the type scale sizes follow the base and the ratio" \
+  fx browse "$FP" '(() => { document.querySelector("input[name=f-base][value=\"16\"]").click(); document.querySelector("input[name=f-ratio][value=\"1.25\"]").click(); const s = window.__choiceResult().type.scale.sizes; return s.body === 16 && s.h3 === 20 && s.h2 === 25; })()'
+printf '{"foundations": {"base": [{"id": "15", "name": "15 px", "note": "Too small.", "v": 15}, {"id": "16", "name": "16 px", "note": "The usual.", "v": 16}]}}' >"$T/found-cands.json"; foundpage "$C" "$T/found-cands.json"
+check "candidates of the agent replace the defaults of a foundation" fpcode 0
+check "a body size under the minimum is warned about, in words" \
+  fx browse "$FP" '(() => { document.querySelector("input[name=f-base][value=\"15\"]").click(); return document.getElementById("warnings").textContent.includes("body text is 15 px, under the minimum 16"); })()'
+check "and she may keep it: the result says what she kept" \
+  fx browse "$FP" '(() => { document.querySelector("input[name=f-base][value=\"15\"]").click(); document.querySelector("#warnings input[type=checkbox]").click(); return window.__choiceResult().kept.includes("type:body:size"); })()'
+printf '{"step": "palette", "choice": {}, "reason": "", "result": {"light": {"bg": "#FFFFFF", "surface": "#F5F5F5", "text": "#1A1A1A", "muted": "#555555", "accent": "#E8E8E8", "on-accent": "#111111"}, "dark": {"bg": "#121212", "surface": "#1E1E1E", "text": "#EDEDED", "muted": "#B0B0B0", "accent": "#6EA8FE", "on-accent": "#121212"}}}' >"$CH/palette.json"; foundpage "$C"
+check "the saved palette is used: a focus ring too faint against it is warned about" \
+  fx browse "$FP" '(() => { document.querySelector("input[name=f-focus][value=accent]").click(); return document.getElementById("warnings").textContent.includes("light: the focus colour accent on bg"); })()'
+check "the pages build strictly and the names check passes" builds "$C"
+check "and the names check" names_pass "$C"
+printf '{"step": "foundations", "choice": {"f-radius": "round", "f-motion": "lively"}, "reason": "Playful"}' >"$CH/foundations.json"; foundpage "$C"
+check "a saved choice is restored" check_page "$FP"
+check "and says so" says "$C.cp.out" "reopens on the saved choice"
 
 exit "$fail"
