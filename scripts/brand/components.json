@@ -18,7 +18,7 @@
     {"id": "nav", "name": "Navigation", "why": "Where the logo and the menu sit.", "cands": [
       {"id": "left", "name": "Logo left", "note": "The logo at the start, the links at the end."},
       {"id": "centre", "name": "Logo centred", "note": "The logo in the middle, the links beneath."}]},
-    {"id": "image", "name": "Images", "why": "How a photograph is framed.", "cands": [
+    {"id": "image", "name": "Images", "why": "How an image is framed.", "cands": [
       {"id": "borderless", "name": "Borderless", "note": "The image alone."},
       {"id": "rounded", "name": "Rounded", "note": "Corners of the card radius."},
       {"id": "framed", "name": "Framed", "note": "A margin around it, like a print."}]},

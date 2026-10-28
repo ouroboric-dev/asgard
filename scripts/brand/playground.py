@@ -31,7 +31,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 IDENTITY = "docs/7-branding/identity"
 ROLE_KEYS = ("bg", "surface", "border", "text", "muted", "accent", "accent-text", "on-accent")
 MESSAGE_KEYS = ("ok", "warn", "crit")
-NEEDS = {"wordmark": [500], "display": [500], "heading": [600], "body": [400, 700], "ui": [400, 600]}
+# What a role needs from its face is what the recipes use, not any one company's choice.
+NEEDS = {"wordmark": [400], "display": [400], "heading": [600], "body": [400, 700], "ui": [400, 500, 600]}
 CSS = r"""
 .pg { display: grid; gap: 16px; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); align-items: start; }
 @media (max-width: 900px) { .pg { grid-template-columns: 1fr; } }
@@ -66,13 +67,13 @@ CSS = r"""
 #site .logo { display: flex; align-items: center; gap: var(--s2); }
 #site .logo .mk { position: relative; width: 36px; aspect-ratio: var(--logo-aspect, 1); }
 #site .logo .mk i { position: absolute; inset: 0; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: contain; mask-size: contain; }
-#site .logo .wm { font: 500 1.35rem var(--f-wordmark); }
+#site .logo .wm { font: 400 1.35rem var(--f-wordmark); }
 #site .links { display: flex; gap: var(--s3); flex-wrap: wrap; }
 #site a, #site .a { color: var(--c-accent-text); }
 #site[data-link="underlined"] .a { text-decoration: underline; text-underline-offset: 3px; }
 #site[data-link="colour"] .a { text-decoration: none; }
 #site[data-link="colour"] .a:hover { text-decoration: underline; }
-#site .display { font: 500 var(--fs-display)/var(--lh-display) var(--f-display); margin: 0; }
+#site .display { font: 400 var(--fs-display)/var(--lh-display) var(--f-display); margin: 0; }
 #site h2 { font: 600 var(--fs-h2)/var(--lh-heading) var(--f-heading); margin: 0; }
 #site h3 { font: 600 var(--fs-h3)/var(--lh-heading) var(--f-heading); margin: 0; }
 #site p { margin: 0; max-width: 62ch; }
@@ -416,7 +417,7 @@ def build(company, candidates):
     links = '<span class="links"><span class="a">Work</span><span class="a">About</span><span class="a">Contact</span></span>'
     site = (f'<div id="site" data-width="desktop"><nav id="site-nav"><span class="logo">{logo}<span class="wm">{e(sample["name"])}</span></span>{links}</nav>'
             f'<section id="site-hero"><p class="display">{e(sample["tagline"])}</p><p>{e(sample["about"])}</p>'
-            '<span class="btn p">Book a date</span></section>'
+            '<span class="btn p">Get in touch</span></section>'
             '<section id="site-grid"><div class="grid"><div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph"></div></div></section>'
             f'<section id="site-about"><h2>About us</h2><p>{e(sample["about"])} <strong>Bold for emphasis,</strong> <em>italic for a title.</em></p>'
             '<p class="small">A caption, a little quieter.</p></section>'
