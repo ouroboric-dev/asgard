@@ -35,7 +35,7 @@ PAIRS = (
 ENHANCED = 7.0
 
 IDENTITY = "docs/7-branding/identity"
-ROLES = ("heading", "body", "ui")
+ROLES = ("wordmark", "display", "heading", "body", "ui")
 FONT_FILES = (".ttf", ".otf", ".woff", ".woff2")
 CLOSING = "This check compares licence files and font data. It is not legal advice."
 # The licences the font check knows by their text: the licences of the Google Fonts library's ofl/, apache/ and ufl/.
@@ -280,6 +280,62 @@ def declarations(palette, keys):
     return [f"  --color-{k}: {palette[k]};" for k in keys if isinstance(palette.get(k), str) and HEX.match(palette[k])]
 
 
+def number(value):
+    """A JSON number as CSS text: 8 and 8.0 are '8', 1.25 stays '1.25'; anything else is None."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return f"{value:g}"
+
+
+def px(value):
+    n = number(value)
+    return None if n is None else f"{n}px"
+
+
+def foundation_declarations(tokens):
+    """(always, reduced): the foundation variables, and the ones a device that asks for reduced motion overrides."""
+    out, scale = [], (tokens.get("type") or {}).get("scale") or {}
+
+    def add(name, value):
+        if value is not None:
+            out.append(f"  --{name}: {value};")
+
+    for name, value in (scale.get("sizes") or {}).items():
+        add(f"text-{name}", px(value))
+    for name, value in (scale.get("lineHeight") or {}).items():
+        add(f"leading-{name}", number(value))
+    space = tokens.get("space")
+    for i, value in enumerate(space if isinstance(space, list) else [], 1):
+        add(f"space-{i}", px(value))
+    for name, value in (tokens.get("radius") or {}).items():
+        add(f"radius-{name}", px(value))
+    for name, value in (tokens.get("elevation") or {}).items():
+        if isinstance(value, str):
+            add(f"shadow-{name}", value)
+    motion = tokens.get("motion") or {}
+    add("motion-distance", px(motion.get("distance")))
+    duration = number(motion.get("duration"))
+    add("motion-duration", None if duration is None else f"{duration}ms")
+    if isinstance(motion.get("easing"), str):
+        add("motion-easing", motion["easing"])
+    focus = tokens.get("focus") or {}
+    if focus.get("role") in COLOURS:
+        add("focus-color", f"var(--color-{focus['role']})")
+    add("focus-width", px(focus.get("width")))
+    add("focus-offset", px(focus.get("offset")))
+    add("target", px(tokens.get("target")))
+    bps = tokens.get("breakpoints")
+    for i, value in enumerate(bps if isinstance(bps, list) else [], 1):
+        add(f"bp-{i}", px(value))
+    # a device that asks for reduced motion: "none" removes the movement and the time, "fade" keeps the time only
+    reduced = []
+    if motion.get("reduced") in ("none", "fade"):
+        reduced.append("  --motion-distance: 0px;")
+        if motion["reduced"] == "none":
+            reduced.append("  --motion-duration: 0ms;")
+    return out, reduced
+
+
 def tokens_css(tokens):
     light, dark = tokens.get("light") or {}, tokens.get("dark") or {}
     keys = list(COLOURS) + sorted({k for p in (light, dark) for k in p if BRAND.match(k)}, key=lambda k: int(k[6:]))
@@ -290,12 +346,15 @@ def tokens_css(tokens):
             stack = f'"{spec["family"]}"' + (f", {spec['fallback']}" if spec.get("fallback") else "")
             fonts_.append(f"  --font-{role}: {stack};")
     dark_lines = declarations(dark, keys)
+    found, reduced = foundation_declarations(tokens)
     out = ["/* Generated from tokens.json: do not edit. The light palette is the default; the dark palette applies",
            "   under prefers-color-scheme: dark and under data-theme=\"dark\". */",
-           ":root {", *declarations(light, keys), *fonts_, "}",
+           ":root {", *declarations(light, keys), *fonts_, *found, "}",
            "@media (prefers-color-scheme: dark) {", "  :root:not([data-theme=\"light\"]) {",
            *["  " + d for d in dark_lines], "  }", "}",
            ":root[data-theme=\"dark\"] {", *dark_lines, "}"]
+    if reduced:
+        out += ["@media (prefers-reduced-motion: reduce) {", "  :root {", *["  " + r for r in reduced], "  }", "}"]
     return "\n".join(out) + "\n"
 
 
