@@ -31,8 +31,8 @@ A child `AGENTS.md` may add rules; it must not loosen these.
   `scripts/tests/company-checks.test.sh`, and its brand checks (`.ouroboric/checks/brand.py`) by
   `scripts/tests/brand-checks.test.sh`. CI (`.github/workflows/ci.yml`, the check `test`) runs every
   `scripts/tests/*.test.sh` on each pull request.
-- The brand tools of step 6: `scripts/brand.sh setup | fonts DIR CANDIDATES.json | palette DIR ROUND.json | logo DIR | board [--check] DIR` (`scripts/brand/`: the
-  pinned Python packages and resvg binaries, `logo.py`, `board.py`, `design.py`, `fonts.py`, `palette.py`), tested by `scripts/tests/brand.test.sh` with
+- The brand tools of step 6: `scripts/brand.sh setup | fonts DIR CANDIDATES.json | palette DIR ROUND.json | logo-prep [--mark] DIR IMAGE | logo-proposals DIR CANDIDATES.json [--choose ALT[:FACE]] | logo DIR | board [--check] DIR` (`scripts/brand/`: the
+  pinned Python packages and resvg binaries, `logo.py`, `logoprep.py`, `proposals.py`, `board.py`, `design.py`, `fonts.py`, `palette.py`), tested by `scripts/tests/brand.test.sh` with
   fixtures drawn by `scripts/tests/brand_fixtures.py`. Spec: yggdrasil
   `docs/2-engineering/specs/2026-10-26-brand-tools.md`.
 - Standards: <https://github.com/ouroboric-dev/ouroboric/tree/main/docs/4-ways-of-working>

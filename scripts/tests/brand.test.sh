@@ -423,4 +423,48 @@ fx round "$ROUND" round4; paletteround
 check "a fourth round is refused: the agent asks what is missing" says "$C.round.out" "three rounds"
 check "palette without a round file is refused" [ "$("$BRAND" palette "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
 
+# Logo preparation (design system tasks DS-T07): cut out, flatten, enlarge.
+use prep; PREP="$C/.ouroboric/choices/logo-prep"
+prep() { local flag=(); if [ "$1" = "--mark" ]; then flag=(--mark); shift; fi
+  "$BRAND" logo-prep ${flag[@]+"${flag[@]}"} "$C" "$1" >"$C.prep.out" 2>&1; echo $? >"$C.prep.code"; }
+# shellcheck disable=SC2329
+pcode() { [ "$(cat "$C.prep.code")" = "$1" ]; }
+fx draw opaque "$T/opaque.png"; prep "$T/opaque.png"
+check "logo-prep takes an image on an opaque flat background and writes a prepared PNG" pcode 0
+check "in the choices folder, named after the image" test -f "$PREP/opaque.png"
+check "the background is cut out: the corners are transparent" fx clear-corners "$PREP/opaque.png"
+check "the short side is at least 1000 pixels" fx short "$PREP/opaque.png" 1000
+fx arcs "$T/arcs.png"; prep "$T/arcs.png"
+check "an anti-aliased image is flattened to its flat colours, with a binary alpha" fx colours "$PREP/arcs.png" 2
+check "its facts are written beside it, with the colours found" fx json "$PREP/arcs.json" 'len(d["colours"]) == 2 and d["background"]["from"] == "removed"'
+check "and the scale used" fx json "$PREP/arcs.json" 'd["scale"] >= 1 and d["output"]["short_side"] >= 1000'
+sum1="$(sha256sum "$PREP/arcs.png")"; prep "$T/arcs.png"
+check "a second run writes the same image" [ "$(sha256sum "$PREP/arcs.png")" = "$sum1" ]
+fx draw mark "$T/transparent.png"; prep "$T/transparent.png"
+check "an image that is already transparent keeps its transparency" fx clear-corners "$PREP/transparent.png"
+check "and says its background was given" fx json "$PREP/transparent.json" 'd["background"]["from"] == "given"'
+fx jpeg "$T/photo.jpg"; prep "$T/photo.jpg"
+check "a JPEG is accepted, by its first bytes" pcode 0
+check "and its compression noise is flattened away" fx colours "$PREP/photo.png" 2
+fx photo "$T/small.png" 200; prep "$T/small.png"
+check "an image under 256 pixels is refused, with code 2" pcode 2
+fx noisy "$T/noisy.png"; prep "$T/noisy.png"
+check "a background that is not one flat colour is refused" pcode 2
+check "and says so" says "$C.prep.out" "flat colour"
+fx blank "$T/blank.png"; prep "$T/blank.png"
+check "an image with nothing but a background is refused" pcode 2
+printf 'not an image' >"$T/text.png"; prep "$T/text.png"
+check "a file that is not an image is refused" pcode 2
+fx draw huge "$T/huge.png"; prep "$T/huge.png"
+check "an image over 8192 pixels is refused" pcode 2
+check "logo-prep without an image is refused" [ "$("$BRAND" logo-prep "$C" >/dev/null 2>&1; echo $?)" -eq 2 ]
+check "logo-prep writes nothing outside the choices folder" only_choices_changed "$C"
+# a mark of long arcs: at 1400 pixels the trace cuts them short; prepared at 2400 or more, it is faithful
+use arcs1400; fx arcs "$SRC/logo.png" flat; logo
+check "a mark of long arcs at 1400 pixels is not traced faithfully" trace 't["modes"]["light"]["mismatch"] > 0.01'
+use arcsprep; PREP="$C/.ouroboric/choices/logo-prep"; fx arcs "$T/arcs-mark.png"; prep --mark "$T/arcs-mark.png"
+check "a mark is enlarged to at least 2400 pixels on its short side" fx short "$PREP/arcs-mark.png" 2400
+cp "$PREP/arcs-mark.png" "$SRC/logo.png"; logo
+check "the same mark, prepared, traces faithfully" trace 't["modes"]["light"]["mismatch"] <= 0.01'
+
 exit "$fail"

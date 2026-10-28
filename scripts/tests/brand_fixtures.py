@@ -12,6 +12,7 @@
     brand_fixtures.py record IMAGERY FILE PERSON CONSENT   add a row to imagery.md's sample images table
     brand_fixtures.py ink PATH            exit 0 when the image holds more than one colour (something is drawn)
     brand_fixtures.py round PATH KIND     write a palette round of three presets (KIND: ok, light-fail, dark-fail, ...)
+    brand_fixtures.py arcs PATH [flat]    a mark of three long arcs and a dot (anti-aliased on white, or flat)
     brand_fixtures.py trace-shades TRACE  write a trace.json with three shades of one token (a soft-edged logo)
 """
 import json
@@ -208,6 +209,27 @@ def round_file(path, kind):
     save(path, {"round": rnd, "presets": presets})
 
 
+def arcs(path, flat):
+    """A mark of three long arcs and a dot, 1400 pixels square: anti-aliased on white (a logo as an image generator
+    makes it), or `flat`: the same, flattened to three colours on a transparent background, but not enlarged."""
+    k, size = 4, 1400
+    big = Image.new("RGB", (size * k, size * k), (255, 255, 255))
+    d = ImageDraw.Draw(big)
+    c = size * k / 2
+    for r, a0, a1 in ((0.42, 200, 520), (0.30, 20, 330), (0.18, 100, 400)):
+        radius = r * size * k
+        d.arc((c - radius, c - radius, c + radius, c + radius), a0, a1, fill=(26, 26, 26), width=80 * k)
+    d.ellipse((c - 0.05 * size * k, c - 0.05 * size * k, c + 0.05 * size * k, c + 0.05 * size * k), fill=(194, 24, 91))
+    im = big.resize((size, size), Image.LANCZOS)
+    if flat:
+        pal = Image.new("P", (1, 1))
+        pal.putpalette([255, 255, 255, 26, 26, 26, 194, 24, 91] + [0] * (256 * 3 - 9))
+        q = im.quantize(palette=pal, dither=Image.Dither.NONE)
+        im = q.convert("RGB")
+        im.putalpha(q.point([0] + [255] * 255, "L"))
+    im.save(path)
+
+
 def main(args):
     cmd = args[0]
     if cmd == "draw":
@@ -237,6 +259,34 @@ def main(args):
         round_file(args[1], args[2])
     elif cmd == "json":  # json FILE PYTHON-EXPRESSION: exit 0 when the expression is true of d
         return 0 if eval(args[2], {"d": load(args[1])}) else 1
+    elif cmd == "arcs":  # arcs PATH [flat]
+        arcs(args[1], len(args) > 2 and args[2] == "flat")
+    elif cmd == "colours":  # colours PNG MAX: opaque pixels have at most MAX colours, and the alpha is 0 or 255
+        im = Image.open(args[1]).convert("RGBA")
+        found = {c[:3] for _, c in im.getcolors(1 << 24) if c[3] > 0}
+        alphas = {c for _, c in im.getchannel("A").getcolors()}
+        return 0 if len(found) <= int(args[2]) and alphas <= {0, 255} else 1
+    elif cmd == "short":  # short PNG MIN: the short side is at least MIN pixels
+        return 0 if min(Image.open(args[1]).size) >= int(args[2]) else 1
+    elif cmd == "clear-corners":  # clear-corners PNG: the four corner pixels are transparent
+        im = Image.open(args[1]).convert("RGBA")
+        w, h = im.size
+        return 0 if all(im.getpixel(p)[3] == 0 for p in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1))) else 1
+    elif cmd == "jpeg":  # jpeg PATH: a logo saved as a JPEG, on white
+        im = Image.new("RGB", (900, 900), (255, 255, 255))
+        d = ImageDraw.Draw(im)
+        d.ellipse((100, 100, 800, 800), fill=(26, 26, 26))
+        d.rectangle((330, 330, 570, 570), fill=(194, 24, 91))
+        im.save(args[1], "JPEG", quality=70)
+    elif cmd == "noisy":  # noisy PATH: a logo on a background that is not one flat colour
+        im = Image.new("RGB", (800, 800))
+        px = im.load()
+        for y in range(800):
+            for x in range(800):
+                px[x, y] = ((x * 7) % 256, (y * 11) % 256, ((x + y) * 5) % 256)
+        im.save(args[1])
+    elif cmd == "blank":  # blank PATH: nothing but a flat background
+        Image.new("RGB", (800, 800), (250, 250, 250)).save(args[1])
     elif cmd == "accepted":  # accepted TOKENS CHECK VALUE REASON
         t = load(args[1])
         t["accepted"].append({"check": args[2], "value": args[3], "reason": args[4], "by": "Alex", "date": "2026-10-28"})
