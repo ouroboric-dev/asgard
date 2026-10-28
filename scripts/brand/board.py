@@ -15,6 +15,11 @@ import tempfile
 
 from PIL import Image, ImageDraw
 
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # brand.sh runs this file isolated (-I)
+import design  # noqa: E402
+from design import esc, render  # noqa: E402
+
 IDENTITY = "docs/7-branding/identity"
 BOARD, IMAGES = f"{IDENTITY}/board.md", f"{IDENTITY}/board"
 LOGO = f"{IDENTITY}/logo"
@@ -24,16 +29,12 @@ COLOURS = ("bg", "surface", "border", "text", "muted", "accent", "accent-text", 
 MESSAGES = ("ok", "warn", "crit")
 HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 BRAND = re.compile(r"^brand-[1-9][0-9]*$")
-ROLES = ("heading", "body", "ui")
+ROLES = design.ROLES
 CLOSING = "This check compares licence files and font data. It is not legal advice."
 
 
 class Refused(Exception):
     pass
-
-
-def esc(text):
-    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
 def luminance(h):
@@ -155,39 +156,21 @@ def on_background(svg_path, bg):
     return "\n".join(out) + "\n"
 
 
-def render(resvg, svg_text, work, name, *args):
-    src, dst = os.path.join(work, f"{name}.svg"), os.path.join(work, f"{name}.png")
-    with open(src, "w", encoding="utf-8") as fh:
-        fh.write(svg_text)
-    subprocess.run([resvg, *args, src, dst], check=True, capture_output=True)
-    return Image.open(dst).convert("RGBA")
-
-
-def specimen(resvg, work, role, spec, pal):
-    """The role's font in each weight, rendered by resvg from the shipped files (WOFF and WOFF2 converted to TTF)."""
-    from fontTools.ttLib import TTFont
-    folder = os.path.join(IDENTITY, spec["files"])
-    fonts = []
-    for n in sorted(os.listdir(folder)):
-        path = os.path.join(folder, n)
-        if n.lower().endswith((".ttf", ".otf")):
-            fonts.append(path)
-        elif n.lower().endswith((".woff", ".woff2")):
-            f = TTFont(path)
-            f.flavor = None
-            out = os.path.join(work, f"{role}-{os.path.splitext(n)[0]}.ttf")
-            f.save(out)
-            fonts.append(out)
+def specimen(resvg, work, role, spec, pal, size):
+    """The role's font in each weight at its scale size, rendered by resvg from the shipped files."""
+    fonts = design.font_files(spec, work, role)
     if not fonts:
         return None
     weights = spec.get("weights") or [400]
     bg, ink = pal.get("bg", "#FFFFFF"), pal.get("text", "#1A1A1A")
-    h = 30 + 64 * len(weights)
+    step = round(size * 1.6) + 16
+    h = 30 + step * len(weights)
     lines = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 {h}" width="1200" height="{h}">',
              f'<rect x="0" y="0" width="1200" height="{h}" fill="{bg}"/>']
     for i, weight in enumerate(weights):
-        lines.append(f'<text x="24" y="{62 + 64 * i}" font-family="{esc(spec["family"])}" font-weight="{weight}" '
-                     f'font-size="40" fill="{ink}">{esc(spec["family"])} {weight}: The quick brown fox, 0123</text>')
+        lines.append(f'<text x="24" y="{24 + round(size * 1.1) + step * i}" font-family="{esc(spec["family"])}" '
+                     f'font-weight="{weight}" font-size="{size:g}" fill="{ink}">{esc(spec["family"])} {weight}: '
+                     "The quick brown fox, 0123</text>")
     lines.append("</svg>")
     args = ["--skip-system-fonts"] + [a for f in fonts for a in ("--use-font-file", f)]
     im = render(resvg, "\n".join(lines) + "\n", work, f"type-{role}", *args)
@@ -271,9 +254,14 @@ def make(resvg, today):
             spec = fonts[role]
             md += [f"### {role.capitalize()}: {spec['family']}", ""]
             if spec.get("files") and os.path.isdir(os.path.join(IDENTITY, spec["files"])):
-                im = specimen(resvg, work, role, spec, pals["light"])
+                scale = (tokens.get("type") or {}).get("scale") or {}
+                size_key, leading_key = design.SCALE_FOR[role]
+                size = (scale.get("sizes") or {}).get(size_key, 32)
+                leading = (scale.get("lineHeight") or {}).get(leading_key)
+                im = specimen(resvg, work, role, spec, pals["light"], size)
                 if im is not None:
-                    md += [f"![{spec['family']} in each weight]({out.image(f'type-{role}.png', im)})", ""]
+                    md += [f"![{spec['family']} in each weight]({out.image(f'type-{role}.png', im)})", "",
+                           f"Set at {size:g} px" + (f" with line height {leading:g}" if leading else "") + ".", ""]
                 else:
                     md += [f"The sample of {spec['family']} could not be drawn from its files.", ""]
                     open_items.append(f"Font {spec['family']} ({role}): its sample could not be drawn from the "
@@ -351,6 +339,7 @@ def make(resvg, today):
                 else:
                     md += [line, ""]
                 open_items.append(f"Logo: {g['what']}.")
+            md += design.logo_usage_md(tokens, pals, out, resvg, work)
 
     md += ["## Sample images", ""]
     if not photos:
@@ -370,6 +359,12 @@ def make(resvg, today):
         md += [f"![{n}](../imagery/{n})", "", f"{n}: {words}.", ""]
     if pals["light"]:
         md += [f"![The light palette]({out.text('palette-strip.svg', palette_strip(pals['light']))})", ""]
+
+    with tempfile.TemporaryDirectory() as work2:
+        md += design.foundations_md(tokens, pals["light"], out, resvg, work2)
+        md += design.components_md(tokens, pals, out, resvg, work2)
+        md += design.applications_md(tokens, pals, resvg, work2)
+    md += design.accepted_md(tokens)
 
     md += ["## Open items", ""]
     md += [f"- {item}" for item in open_items] if open_items else ["None."]

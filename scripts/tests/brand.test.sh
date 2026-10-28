@@ -165,7 +165,7 @@ board_images_clean() { local f; for f in "$1"/*; do
 builds() { (cd "$1" && mkdocs build --strict --quiet --config-file .ouroboric/mkdocs.yml); }
 # shellcheck disable=SC2329
 docs_pass() { (cd "$1" && python3 .ouroboric/checks/docs-check.py); }
-board_sums() { (cd "$C/$ID_REL" && sha256sum board.md board/*); }
+board_sums() { (cd "$C/$ID_REL" && sha256sum board.md board/* applications/*); }
 # shellcheck disable=SC2329
 no_pycache() { [ -z "$(find "$1" -name __pycache__)" ]; }
 # shellcheck disable=SC2329
@@ -234,5 +234,59 @@ for i in 1 2 3 4 5 6 7; do fx photo "$C/docs/7-branding/imagery/p$i.png" 600; do
 check "board refuses more than six sample images (5.4.11)" bcode 2
 use bbig; mkdir -p "$C/docs/7-branding/imagery"; fx photo "$C/docs/7-branding/imagery/big.png" 2000; board
 check "board refuses a sample image over 1600 pixels (5.4.11)" bcode 2
+
+# The design system on the board (design system tasks DS-T09; spec §5.4).
+use bsystem; TK="$C/$ID_REL/tokens.json"; fx palette "$TK"; fx font "$TK" "$C/$ID_REL/fonts/test" "Test Serif" ttf
+fx message-colour "$TK" "#FF00FF"
+fx accepted "$TK" "type:body:italic" "Test Serif" "No italics; emphasis in bold."
+fx accepted "$TK" "target" "20" "Small icons on the dense toolbar."
+fx draw mark "$SRC/logo.png"; fx draw square "$SRC/mark.png"
+(cd "$C" && "$PY" -I .ouroboric/checks/brand.py tokens --write >/dev/null)
+logo; board
+B="$C/$ID_REL/board.md"; BD="$C/$ID_REL/board"; AP="$C/$ID_REL/applications"
+check "the board with the design system is written" bcode 0
+check "its parts stay in order, the new ones before the open items" \
+  in_order "$B" Palette Type Logo "Sample images" Foundations Components Applications "Accepted exceptions" "Open items"
+for r in wordmark display heading body ui; do
+  check "the $r role has a specimen drawn from its font" fx ink "$BD/type-$r.png"
+done
+check "each role is shown at its scale size" says_all "$B" "Set at 39 px" "Set at 25 px" "Set at 16 px" "Set at 14 px"
+check "the foundations are listed with their values" \
+  says_all "$B" "Spacing" "8 px" "64 px" "Corner radius" "Elevation" "Motion" "240 ms" "Focus" "Touch target" "44 px" "Breakpoints" "640 px"
+check "with pictures of the spacing, the corners and the depth" \
+  test -f "$BD/foundations-space.svg" -a -f "$BD/foundations-radius.svg" -a -f "$BD/foundations-elevation.png"
+for c in button link field card message navigation image icon; do
+  check "the component sheet lists the $c and its recipe" says "$B" "^| $c | "
+done
+check "the chosen variants are named" says_all "$B" "| button | filled |" "| card | bordered |" "| message | tint |" "| navigation | left |"
+check "the component sheet is drawn in light" fx ink "$BD/components-light.png"
+check "and in dark" fx ink "$BD/components-dark.png"
+check "and leaves the message colours out" fx lacks-colour "$BD/components-light.png" "#FF00FF"
+check "also in dark" fx lacks-colour "$BD/components-dark.png" "#FF00FF"
+check "logo usage: the clear space is stated" says_all "$B" "Clear space" "width of the mark"
+check "and drawn" test -f "$BD/logo-clear-space.svg"
+check "the minimum sizes are stated" says "$B" "Minimum size"
+check "and drawn for the logo and the mark" test -f "$BD/logo-minimum-light.png"
+for m in stretched rotated recoloured low-contrast; do
+  check "the misuse '$m' has its own tile" test -f "$BD/misuse-$m.svg"
+done
+check "the misuses are listed in words" says_all "$B" "Do not stretch" "Do not rotate" "Do not recolour" "Do not place"
+check "the board images stay SVGs of the allowed elements, or PNGs" board_images_clean "$BD"
+check "the kept exceptions are listed with their reasons" says_all "$B" "No italics; emphasis in bold." "Small icons on the dense toolbar." "type:body:italic"
+check "the profile picture is square, 1080 pixels" fx size "$AP/profile-picture.png" 1080x1080
+check "the link preview is 1200 by 630" fx size "$AP/link-preview.png" 1200x630
+check "the email signature has a double-resolution logo" test -f "$AP/email-signature.html" -a -f "$AP/signature-logo@2x.png"
+check "and the HTML shows it at half its width" fx half-width "$AP/email-signature.html" "$AP/signature-logo@2x.png"
+check "the board shows the applications" says_all "$B" "applications/profile-picture.png" "applications/link-preview.png" "email-signature.html"
+check "the board still holds no HTML" no_html "$B"
+check "the pages build strictly with the applications" builds "$C"
+check "the docs check passes" docs_pass "$C"
+check "the names check passes" names_pass "$C"
+sums="$(board_sums)"; board
+check "a second board writes byte-identical files, applications included" [ "$(board_sums)" = "$sums" ]
+
+use bnone; board
+check "a board with no logo and no exceptions says so, and still writes" bcode 0
+check "no exception is stated" says "$C/$ID_REL/board.md" "No exception is kept"
 
 exit "$fail"
