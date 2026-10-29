@@ -17,7 +17,7 @@ The contrast check needs only the standard library; the font checks read font fi
 A failure the founder keeps is an accepted exception: an entry of `accepted` in tokens.json with the check's id, the
 value that fails, her reason, who and when. A failure whose id and value match is reported as accepted and does not
 fail the check. An entry whose value no longer matches is stale: the check fails again. The ids are
-`contrast:<mode>:<fg>/<bg>`, `type:<role>:glyphs`, `type:<role>:weights`, `type:body:italic`, `type:body:size`,
+`contrast:<mode>:<fg>/<bg>`, `type:<role>:glyphs`, `type:<role>:weights`, `type:<role>:weight`, `type:<role>:strong`, `type:body:italic`, `type:body:size`,
 `type:scale:minimum`, `type:body:leading`, `focus:width`, `focus:<mode>:<bg>` and `target`.
 
 Each finding prints as `path: what is wrong`. Exit codes: 0 when every check passes, 1 when a check has a finding,
@@ -593,6 +593,11 @@ def type_checks():
             if not any(lo <= w <= hi for lo, hi in have):
                 judge(tokens, f"type:{role}:weights", w,
                       f"{label}: weight {w} is not in the font files (they have {shown_have})", findings, report)
+        for key, word in (("weight", "regular"), ("strong", "strong")):
+            w = spec.get(key)
+            if isinstance(w, int) and not isinstance(w, bool) and not any(lo <= w <= hi for lo, hi in have):
+                judge(tokens, f"type:{role}:{key}", w,
+                      f"{label}: the {word} weight {w} is not in the font files (they have {shown_have})", findings, report)
         if role == "body" and not any(font_is_italic(f) for f in opened):
             judge(tokens, "type:body:italic", family, f"{label} has no italic", findings, report)
     for line in report:
@@ -670,6 +675,19 @@ def foundation_declarations(tokens):
     return out, reduced
 
 
+def role_weights(role, spec):
+    """(regular, strong) of a type role: its `weight` and `strong`, else 400 (500 for ui) and 600, lowered to the
+    nearest of the role's shipped `weights`."""
+    shipped = [w for w in spec.get("weights") or [] if isinstance(w, int) and not isinstance(w, bool)]
+
+    def pick(key, default):
+        w = spec.get(key)
+        if isinstance(w, int) and not isinstance(w, bool):
+            return w
+        return min(shipped, key=lambda x: (abs(x - default), x)) if shipped else default
+    return pick("weight", 500 if role == "ui" else 400), pick("strong", 600)
+
+
 def tokens_css(tokens):
     light, dark = tokens.get("light") or {}, tokens.get("dark") or {}
     keys = list(COLOURS) + sorted({k for p in (light, dark) for k in p if BRAND.match(k)}, key=lambda k: int(k[6:]))
@@ -679,6 +697,8 @@ def tokens_css(tokens):
         if spec.get("family"):
             stack = f'"{spec["family"]}"' + (f", {spec['fallback']}" if spec.get("fallback") else "")
             fonts_.append(f"  --font-{role}: {stack};")
+            regular, strong = role_weights(role, spec)
+            fonts_ += [f"  --weight-{role}: {regular};", f"  --weight-{role}-strong: {strong};"]
     dark_lines = declarations(dark, keys)
     found, reduced = foundation_declarations(tokens)
     out = ["/* Generated from tokens.json: do not edit. The light palette is the default; the dark palette applies",
