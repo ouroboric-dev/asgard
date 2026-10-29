@@ -34,6 +34,8 @@ ROLE_KEYS = ("bg", "surface", "border", "text", "muted", "accent", "accent-text"
 MESSAGE_KEYS = ("ok", "warn", "crit")
 # What a role needs from its face is what the recipes use, not any one company's choice.
 NEEDS = {"wordmark": [400], "display": [400], "heading": [600], "body": [400, 700], "ui": [400, 500, 600]}
+# The weight each role is set in and its strong weight, as the recipes use them (the contract's defaults).
+WEIGHTS = {"wordmark": [400, 400], "display": [400, 400], "heading": [400, 600], "body": [400, 700], "ui": [500, 600]}
 CSS = r"""
 .pg { display: grid; gap: 16px; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); align-items: start; }
 @media (max-width: 900px) { .pg { grid-template-columns: 1fr; } }
@@ -59,7 +61,7 @@ CSS = r"""
 .sitebar button { font: inherit; font-size: .85rem; border-radius: 8px; padding: 4px 10px; cursor: pointer; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
 .sitebar button[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .viewport { overflow: auto; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); padding: 8px; }
-#site { margin: 0 auto; width: 100%; background: var(--c-bg); color: var(--c-text); font: 400 var(--fs-body)/var(--lh-body) var(--f-body); border-radius: 10px; overflow: hidden; }
+#site { margin: 0 auto; width: 100%; background: var(--c-bg); color: var(--c-text); font: var(--weight-body) var(--fs-body)/var(--lh-body) var(--f-body); border-radius: 10px; overflow: hidden; }
 /* The contract's names for the sample site's own variables: the shared recipes (recipes.css) are written in them. */
 #site { --color-bg: var(--c-bg); --color-surface: var(--c-surface); --color-border: var(--c-border); --color-text: var(--c-text); --color-muted: var(--c-muted);
   --color-accent: var(--c-accent); --color-accent-text: var(--c-accent-text); --color-on-accent: var(--c-on-accent); --color-ok: var(--m-ok); --color-warn: var(--m-warn); --color-crit: var(--m-crit);
@@ -73,11 +75,11 @@ CSS = r"""
 #site .logo { display: flex; align-items: center; gap: var(--s2); }
 #site .logo .mk { position: relative; width: 36px; aspect-ratio: var(--logo-aspect, 1); }
 #site .logo .mk i { position: absolute; inset: 0; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: contain; mask-size: contain; }
-#site .logo .wm { font: 400 1.35rem var(--f-wordmark); }
+#site .logo .wm { font: var(--weight-wordmark) 1.35rem var(--f-wordmark); }
 #site .links { display: flex; gap: var(--s3); flex-wrap: wrap; }
-#site .display { font: 400 var(--fs-display)/var(--lh-display) var(--f-display); margin: 0; }
-#site h2 { font: 600 var(--fs-h2)/var(--lh-heading) var(--f-heading); margin: 0; }
-#site h3 { font: 600 var(--fs-h3)/var(--lh-heading) var(--f-heading); margin: 0; }
+#site .display { font: var(--weight-display) var(--fs-display)/var(--lh-display) var(--f-display); margin: 0; }
+#site h2 { font: var(--weight-heading-strong) var(--fs-h2)/var(--lh-heading) var(--f-heading); margin: 0; }
+#site h3 { font: var(--weight-heading-strong) var(--fs-h3)/var(--lh-heading) var(--f-heading); margin: 0; }
 #site p { margin: 0; max-width: 62ch; }
 #site .small { font-size: var(--fs-small); color: var(--c-muted); }
 #site .ds-btn.focused, #site .ds-field input.focused { outline: var(--focus-w) solid var(--focus-c); outline-offset: var(--focus-o); }
@@ -197,6 +199,7 @@ JS = r"""
     var fo = s.found.focus.v; v.setProperty("--focus-w", fo.width + "px"); v.setProperty("--focus-o", fo.offset + "px"); v.setProperty("--focus-c", fo.role === "text" ? "var(--m-text)" : "var(--m-" + fo.role + ")");
     v.setProperty("--target", s.found.target.v + "px");
     d.roleNames.forEach(function (r) { if (s.faces[r]) { v.setProperty("--f-" + r, stack(s.faces[r])); } });
+    d.roleNames.forEach(function (r) { var w = weightsOf(r); v.setProperty("--weight-" + r, w.weight); v.setProperty("--weight-" + r + "-strong", w.strong); });
     var parts = { button: ".ds-btn", link: ".ds-link", card: ".ds-card", message: ".ds-message", nav: ".ds-nav", image: ".ds-image", icons: ".ds-icon" };
     Object.keys(parts).forEach(function (k) { site.querySelectorAll(parts[k]).forEach(function (el) { el.setAttribute("data-variant", s.comps[k]); }); });
     v.setProperty("--motion-duration", mo.duration + "ms"); v.setProperty("--motion-easing", mo.easing);
@@ -209,13 +212,16 @@ JS = r"""
     var t = JSON.parse(JSON.stringify(d.tokens));
     ["light", "dark"].forEach(function (m) { Object.keys(s.pal[m]).forEach(function (k) { t[m][k] = s.pal[m][k]; }); });
     t.type = { fonts: {}, scale: { base: s.base, ratio: s.ratio, minimum: d.min.body, sizes: s.sizes, lineHeight: { body: s.leading, heading: 1.25, display: 1.1 } } };
-    d.roleNames.forEach(function (r) { var f = s.faces[r]; if (f) { t.type.fonts[r] = { family: f.family, fallback: d.fallback[f.kind], weights: NEEDS[r], files: "fonts/" + f.dir, licence: f.licence, source: f.source }; } });
+    d.roleNames.forEach(function (r) { var f = s.faces[r]; if (f) { t.type.fonts[r] = { family: f.family, fallback: d.fallback[f.kind], weights: shipped(r), weight: weightsOf(r).weight, strong: weightsOf(r).strong, files: "fonts/" + f.dir, licence: f.licence, source: f.source }; } });
     t.space = s.found.space.v; t.radius = s.found.radius.v; t.elevation = s.found.elevation.v;
     t.motion = { distance: s.found.motion.v.distance, duration: s.found.motion.v.duration, easing: s.found.motion.v.easing, reduced: "none" };
     t.focus = s.found.focus.v; t.target = s.found.target.v; t.breakpoints = s.found.breakpoints.v; t.components = s.comps; t.accepted = [];
     return t;
   }
   var NEEDS = d.needs;
+  function shipped(r) { var w = weightsOf(r), all = NEEDS[r].concat([w.weight, w.strong]); return all.filter(function (x, i) { return all.indexOf(x) === i; }).sort(function (a, b) { return a - b; }); }
+  function weightsOf(r) { var tf = ((d.tokens.type || {}).fonts || {})[r] || {}, dflt = d.weights[r];
+    return { weight: Number.isInteger(tf.weight) ? tf.weight : dflt[0], strong: Number.isInteger(tf.strong) ? tf.strong : dflt[1] }; }
   function current() { return checks(settings()); }
   window.__checks = current;
   window.__keep = function (id, reason) {
@@ -423,7 +429,7 @@ def build(company, candidates):
                   f'{"<span class=n id=open-count></span>" if k == "checks" else ""}</button>' for k, n, _ in tabs)
     panels = "".join(f'<div class="tabbody" data-tab="{k}"{"" if k == "palette" else " hidden"}>{h}</div>' for k, _, h in tabs)
     data = {"presets": presets, "roles": roles, "roleKeys": list(ROLE_KEYS), "foundations": foundations, "components": components, "faces": rows,
-            "roleNames": role_names, "fallback": typepage.FALLBACK, "needs": NEEDS, "palette": yours, "tokens": tokens,
+            "roleNames": role_names, "fallback": typepage.FALLBACK, "needs": NEEDS, "weights": WEIGHTS, "palette": yours, "tokens": tokens,
             "accepted": [a for a in tokens.get("accepted") or [] if isinstance(a, dict)],
             "pairs": [{"fgs": list(f), "bgs": list(b), "kind": k, "minimum": m} for f, b, k, m in brand.PAIRS],
             "expected": [r for r in expected], "min": {"body": brand.MIN_BODY, "leading": brand.MIN_LEADING, "focus": brand.MIN_FOCUS,
