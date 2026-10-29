@@ -1035,6 +1035,7 @@ good = {"light": {"bg": "#FFFFFF", "surface": "#F5F5F5", "border": "#DDDDDD", "t
         "dark": {"bg": "#121212", "surface": "#1E1E1E", "border": "#333333", "text": "#EDEDED", "muted": "#B0B0B0", "accent": "#6EA8FE", "accent-text": "#6EA8FE", "on-accent": "#121212", "ok": "#81C784", "warn": "#FFB74D", "crit": "#EF9A9A"}}
 json.dump({"step": "palette", "choice": {"preset": "calm"}, "reason": "Calm", "result": {"preset": "calm", **good, "kept": []}}, open(ch + "/palette.json", "w"))
 fonts = {r: {"id": i} for r, i in (("wordmark", "pen"), ("display", "slant"), ("heading", "slant"), ("body", "slant"), ("ui", "plain"))}
+fonts["body"].update({"weight": 400, "strong": 600})
 json.dump({"step": "type-depth", "choice": {}, "reason": "", "result": {"favourites": ["plain", "slant", "bold", "pen"]}}, open(ch + "/type-depth.json", "w"))
 json.dump({"step": "type", "choice": {}, "reason": "", "result": {"fonts": fonts, "kept": []}}, open(ch + "/type.json", "w"))
 PY
@@ -1059,6 +1060,8 @@ check "and the saved typefaces: the body is the one she chose" \
   fx browse "$PGP" 'window.__choiceResult().tokens.type.fonts.body.family === "Slant Face" && window.__choiceResult().tokens.type.fonts.wordmark.family === "Pen Face"'
 check "the export carries each role's regular and strong weights, both among those it ships" \
   fx browse "$PGP" 'Object.values(window.__choiceResult().tokens.type.fonts).every(f => Number.isInteger(f.weight) && Number.isInteger(f.strong) && f.weights.includes(f.weight) && f.weights.includes(f.strong))'
+check "the weights saved on the roles page are the playground's: a body strong of 600, not the default 700" \
+  fx browse "$PGP" 'window.__choiceResult().tokens.type.fonts.body.strong === 600 && window.__choiceResult().tokens.type.fonts.body.weight === 400'
 check "the sample site's button takes the ui role's strong weight" \
   fx browse "$PGP" 'getComputedStyle(document.querySelector("#site .ds-btn")).fontWeight === "600"'
 check "and the foundations of the tokens" fx browse "$PGP" 'window.__choiceResult().tokens.target === 44 && window.__choiceResult().tokens.space.length === 7'
