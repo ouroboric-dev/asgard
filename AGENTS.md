@@ -35,4 +35,6 @@ A child `AGENTS.md` may add rules; it must not loosen these.
   pinned Python packages and resvg binaries, `logo.py`, `logoprep.py`, `proposals.py`, `choicepage.py`, `palettepage.py`, `typepage.py`, `foundationspage.py`, `playground.py`, `reference.py`, `components.json` (the component variants), `foundations.json` (the default foundation candidates), `faces-source.json` and `faces.json` (the curated faces, by direction, and their pins), `pin_faces.py`, `serve.py`, `pagecheck.py`, `board.py`, `design.py`, `fonts.py`, `palette.py`), tested by `scripts/tests/brand.test.sh` with
   fixtures drawn by `scripts/tests/brand_fixtures.py`. Spec: yggdrasil
   `docs/2-engineering/specs/2026-10-26-brand-tools.md`.
+- The kickstart guide, the journey as a procedure for the agent: `docs/3-using/kickstart-guide.md`, tested by `scripts/tests/guide.test.sh`
+  (every command it names exists, every tool command is named, and it names no company).
 - Standards: <https://github.com/ouroboric-dev/ouroboric/tree/main/docs/4-ways-of-working>
