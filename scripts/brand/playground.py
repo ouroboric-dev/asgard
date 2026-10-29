@@ -34,8 +34,6 @@ ROLE_KEYS = ("bg", "surface", "border", "text", "muted", "accent", "accent-text"
 MESSAGE_KEYS = ("ok", "warn", "crit")
 # What a role needs from its face is what the recipes use, not any one company's choice.
 NEEDS = {"wordmark": [400], "display": [400], "heading": [600], "body": [400, 700], "ui": [400, 500, 600]}
-# The weight each role is set in and its strong weight, as the recipes use them (the contract's defaults).
-WEIGHTS = {"wordmark": [400, 400], "display": [400, 400], "heading": [400, 600], "body": [400, 700], "ui": [500, 600]}
 CSS = r"""
 .pg { display: grid; gap: 16px; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); align-items: start; }
 @media (max-width: 900px) { .pg { grid-template-columns: 1fr; } }
@@ -220,8 +218,9 @@ JS = r"""
   }
   var NEEDS = d.needs;
   function shipped(r) { var w = weightsOf(r), all = NEEDS[r].concat([w.weight, w.strong]); return all.filter(function (x, i) { return all.indexOf(x) === i; }).sort(function (a, b) { return a - b; }); }
-  function weightsOf(r) { var tf = ((d.tokens.type || {}).fonts || {})[r] || {}, dflt = d.weights[r];
-    return { weight: Number.isInteger(tf.weight) ? tf.weight : dflt[0], strong: Number.isInteger(tf.strong) ? tf.strong : dflt[1] }; }
+  function weightsOf(r) { var sv = d.savedWeights[r] || {}, tf = ((d.tokens.type || {}).fonts || {})[r] || {}, dflt = d.weights[r];
+    function pick(k, i) { return Number.isInteger(sv[k]) ? sv[k] : Number.isInteger(tf[k]) ? tf[k] : dflt[i]; }
+    return { weight: pick("weight", 0), strong: pick("strong", 1) }; }
   function current() { return checks(settings()); }
   window.__checks = current;
   window.__keep = function (id, reason) {
@@ -351,6 +350,8 @@ def build(company, candidates):
     by_id = {f["id"]: f for f in pool_spec["faces"]}
     saved_type = (choicepage.saved_choice(company, "type") or {}).get("result") or {}
     chosen_faces = {r: v.get("id") for r, v in (saved_type.get("fonts") or {}).items() if isinstance(v, dict) and v.get("id") in by_id}
+    saved_weights = {r: {k: v[k] for k in ("weight", "strong") if isinstance(v.get(k), int) and not isinstance(v.get(k), bool)}
+                     for r, v in (saved_type.get("fonts") or {}).items() if isinstance(v, dict)}
     fav = ((choicepage.saved_choice(company, "type-depth") or {}).get("result") or {}).get("favourites") or \
         ((choicepage.saved_choice(company, "type-taste") or {}).get("result") or {}).get("likes") or []
     ids = [i for i in dict.fromkeys(list(chosen_faces.values()) + list(fav)) if i in by_id]
@@ -429,7 +430,7 @@ def build(company, candidates):
                   f'{"<span class=n id=open-count></span>" if k == "checks" else ""}</button>' for k, n, _ in tabs)
     panels = "".join(f'<div class="tabbody" data-tab="{k}"{"" if k == "palette" else " hidden"}>{h}</div>' for k, _, h in tabs)
     data = {"presets": presets, "roles": roles, "roleKeys": list(ROLE_KEYS), "foundations": foundations, "components": components, "faces": rows,
-            "roleNames": role_names, "fallback": typepage.FALLBACK, "needs": NEEDS, "weights": WEIGHTS, "palette": yours, "tokens": tokens,
+            "roleNames": role_names, "fallback": typepage.FALLBACK, "needs": NEEDS, "weights": typepage.WEIGHTS, "savedWeights": saved_weights, "palette": yours, "tokens": tokens,
             "accepted": [a for a in tokens.get("accepted") or [] if isinstance(a, dict)],
             "pairs": [{"fgs": list(f), "bgs": list(b), "kind": k, "minimum": m} for f, b, k, m in brand.PAIRS],
             "expected": [r for r in expected], "min": {"body": brand.MIN_BODY, "leading": brand.MIN_LEADING, "focus": brand.MIN_FOCUS,
