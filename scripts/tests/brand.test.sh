@@ -154,7 +154,7 @@ python3 - "$T/type-cands.json" <<'PY'
 import json, sys
 json.dump({"languages": ["en"], "sample": {"name": "Example Studio", "tagline": "Portraits that feel like you", "about": "We photograph families the way they are, laughing and a little messy."}}, open(sys.argv[1], "w"))
 PY
-check_page() { "$BRAND" check-page "$C" "$1" >"$C.cp.out" 2>&1; }
+check_page() { "$BRAND" check-page "$C" "$1" >"$C.cp.out" 2>&1 || { cat "$C.cp.out"; return 1; }; }
 
 # The logo proposals' fake library and candidates, shared by the proposals and the choice sections.
 PLIB="$T/proplib"; PDL="$T/propdl"
@@ -840,6 +840,12 @@ ROLES="$CH/type.html"
 check "with the depth saved, type-page builds the roles page" tpcode 0
 check "which says so" says "$C.tp.out" "roles"
 check "the roles page passes the page check" check_page "$ROLES"
+check "each role offers the weights its preview shows: regular for the wordmark and display, strong for headings, both for body and interface" \
+  fx page "$ROLES" 'd["offered"] == {"wordmark": ["weight"], "display": ["weight"], "heading": ["strong"], "body": ["weight", "strong"], "ui": ["weight", "strong"]} and all(("data-option-group=\"%s-%s\"" % (k, r)) in html for r, ks in d["offered"].items() for k in ks)'
+check "they start at the contract's weights, lowered to the face's, and the result carries both" \
+  fx browse "$ROLES" '(() => { const f = window.__choiceResult().fonts; return Object.values(f).every(x => Number.isInteger(x.weight) && x.strong >= x.weight) && f.wordmark.weight === 400 && f.display.weight === 400; })()'
+check "a weight the face lacks cannot be chosen: it is offered but disabled" \
+  fx browse "$ROLES" '(() => { const f = window.__choiceResult().fonts.wordmark; const g = document.querySelector("[data-option-group=weight-wordmark]"); return Array.from(g.querySelectorAll("input")).every(i => i.disabled === !f.weights.some(w => w.min <= Number(i.value) && Number(i.value) <= w.max)); })()'
 check "what a role needs from its face is what the recipes use, not any one company's choice: regular for the wordmark and display" \
   fx page "$ROLES" 'd["needs"]["wordmark"]["weights"] == [400] and d["needs"]["display"]["weights"] == [400]'
 check "semibold for headings, regular and bold with an italic for the body, regular, medium and semibold for the interface" \

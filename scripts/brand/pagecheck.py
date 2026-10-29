@@ -33,7 +33,7 @@ IMAGES_JS = """() => Array.from(document.images).filter(i => !(i.complete && i.n
 GROUPS_JS = """() => {
   const out = {};
   document.querySelectorAll("[data-option-group]").forEach(g => {
-    out[g.getAttribute("data-option-group")] = Array.from(g.querySelectorAll("input[type=radio]")).map(r => r.value);
+    out[g.getAttribute("data-option-group")] = Array.from(g.querySelectorAll("input[type=radio]")).filter(r => !r.disabled).map(r => r.value);
   });
   return out;
 }"""
