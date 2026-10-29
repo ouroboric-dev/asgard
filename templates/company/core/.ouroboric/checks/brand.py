@@ -847,9 +847,9 @@ def generated(write=False):
 
 
 def board_inputs_hash():
-    """One SHA-256 over the board's inputs: tokens.json, fonts.css, the font files, the logo folder, the sample images
-    and imagery.md. The board records it; the freshness check compares it."""
-    paths = [TOKENS, FONTS_CSS, "docs/7-branding/imagery.md"]
+    """One SHA-256 over the board's inputs: tokens.json, fonts.css, the font files, the logo folder, the logo's choice record,
+    the sample images and imagery.md. The board records it; the freshness check compares it."""
+    paths = [TOKENS, FONTS_CSS, "docs/7-branding/imagery.md", f"{IDENTITY}/choices/logo.json"]
     for folder in (f"{IDENTITY}/fonts", f"{IDENTITY}/logo", "docs/7-branding/imagery"):
         for base, _, names in os.walk(folder):
             paths += [os.path.join(base, n) for n in names]

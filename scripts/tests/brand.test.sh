@@ -291,6 +291,17 @@ check "board --check passes while nothing changed" board_fresh
 fx record "$C/docs/7-branding/imagery.md" detail.png no ""
 check "board --check fails when an input changed (5.4.7)" board_stale
 check "and so does the company's freshness check" company_stale
+# The logo's lettering is drawn once: when the wordmark role is another face than the one it was drawn in, the board says so.
+mkdir -p "$C/$ID_REL/choices"; LJ="$C/$ID_REL/choices/logo.json"
+printf '{"step": "logo", "alternative": "named", "face": "other", "wordmark": {"family": "Other Face", "licence": "OFL-1.1"}}' >"$LJ"
+board
+check "a logo drawn in another face than the wordmark role is an open item" says "$B" "drawn in Other Face"
+check "which names the wordmark role's face and the command that draws it again" \
+  says_all "$B" "wordmark role is Test Serif" "logo-proposals CANDIDATES --choose named:FACE"
+printf '{"step": "logo", "alternative": "named", "face": "test", "wordmark": {"family": "Test Serif", "licence": "OFL-1.1"}}' >"$LJ"
+check "the board is stale when the logo's choice record changes" board_stale
+board
+check "a logo drawn in the wordmark role's face is not an open item" lacks_text "$B" "drawn in"
 check "the board leaves no Python cache in the company" no_pycache "$C"
 check "the palette panels show the brand colours, not the message colours" no_message_swatch "$C/$ID_REL/board/palette-light.svg"
 check "the contrast tables leave the message colours out" no_message_pairs "$B"
