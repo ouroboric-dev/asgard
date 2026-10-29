@@ -27,6 +27,11 @@ import choicepage  # noqa: E402
 import fonts as library  # noqa: E402
 
 ROLES = ("wordmark", "display", "heading", "body", "ui")
+# The weight each role is set in and its strong weight, as the recipes use them (the contract's defaults).
+WEIGHTS = {"wordmark": [400, 400], "display": [400, 400], "heading": [400, 600], "body": [400, 700], "ui": [500, 600]}
+# The weights a role's preview shows, so the only ones offered: the others keep the default.
+OFFERED = {"wordmark": ("weight",), "display": ("weight",), "heading": ("strong",), "body": ("weight", "strong"), "ui": ("weight", "strong")}
+LADDER = (100, 200, 300, 400, 500, 600, 700, 800, 900)
 ROLE_INFO = {
     "wordmark": ("Wordmark", "The company's name in the logo.", "The logo, the favicon set, the signature.",
                  "Everywhere, but always the same few words.", [400], False),
@@ -53,11 +58,13 @@ CSS = """
 .stage { display: grid; gap: 16px; }
 .live { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
 .panel { border: 1px solid var(--line); border-radius: 12px; padding: 20px; background: var(--p-bg); color: var(--p-text); display: grid; gap: 10px; align-content: start; }
-.panel .wm { font-family: var(--f-wordmark); font-size: 2rem; margin: 0; line-height: 1.1; }
-.panel .disp { font-family: var(--f-display); font-size: 1.9rem; margin: 0; line-height: 1.15; }
-.panel .head { font-family: var(--f-heading); font-size: 1.25rem; font-weight: 600; margin: 0; }
-.panel .body { font-family: var(--f-body); margin: 0; }
-.panel .ui { font-family: var(--f-ui); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.panel .wm { font-weight: var(--w-wordmark, 400); font-family: var(--f-wordmark); font-size: 2rem; margin: 0; line-height: 1.1; }
+.panel .disp { font-weight: var(--w-display, 400); font-family: var(--f-display); font-size: 1.9rem; margin: 0; line-height: 1.15; }
+.panel .head { font-family: var(--f-heading); font-size: 1.25rem; font-weight: var(--w-heading-strong, 600); margin: 0; }
+.panel .body { font-weight: var(--w-body, 400); font-family: var(--f-body); margin: 0; }
+.panel .body strong { font-weight: var(--w-body-strong, 700); }
+.panel .btn { font-weight: var(--w-ui-strong, 600); }
+.panel .ui { font-weight: var(--w-ui, 500); font-family: var(--f-ui); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .panel .btn { background: var(--p-accent); color: var(--p-on-accent); border-radius: 6px; padding: 6px 14px; font-weight: 600; }
 .panel .small { color: var(--p-muted); font-size: .8rem; margin: 0; }
 .favs { border: 1px dashed var(--line); border-radius: 12px; padding: 10px 14px; display: flex; gap: 12px; flex-wrap: wrap; align-items: baseline; min-height: 2.4rem; }
@@ -120,10 +127,29 @@ JS = """
     return { favourites: fav };
   }
   function picks() { var o = {}; d.roles.forEach(function (r) { o[r] = checked("type-" + r); }); return o; }
+  function has(f, w) { return f.weights.some(function (x) { return x.min <= w && w <= x.max; }); }
+  function nearest(f, w) {
+    var ok = d.ladder.filter(function (x) { return has(f, x); });
+    return ok.length ? ok.reduce(function (a, b) { return Math.abs(b - w) < Math.abs(a - w) ? b : a; }) : w;
+  }
+  function weights(r, f, stage) {
+    [["weight", "w-" + r], ["strong", "w-" + r + "-strong"]].forEach(function (g, i) {
+      var inputs = Array.from(document.querySelectorAll('[data-option-group="' + g[0] + "-" + r + '"] input'));
+      inputs.forEach(function (x) { x.disabled = !has(f, Number(x.value)); });
+      var now = inputs.filter(function (x) { return x.checked; })[0];
+      if (!now || now.disabled) {
+        var want = nearest(f, now ? Number(now.value) : d.defaults[r][i]);
+        inputs.forEach(function (x) { x.checked = Number(x.value) === want; });
+      }
+      var on = inputs.filter(function (x) { return x.checked; })[0];
+      if (on) { stage.style.setProperty("--" + g[1], on.value); }
+    });
+  }
+  function weightOf(g, r, f) { var v = checked(g + "-" + r); return v === null ? nearest(f, d.defaults[r][g === "weight" ? 0 : 1]) : Number(v); }
   function roles() {
     var p = picks(), stage = document.getElementById("stage");
     d.roles.forEach(function (r) {
-      var f = face(p[r]); if (f) { stage.style.setProperty("--f-" + r, stack(f)); }
+      var f = face(p[r]); if (f) { stage.style.setProperty("--f-" + r, stack(f)); weights(r, f, stage); }
       document.querySelectorAll('[data-view="face-' + r + '"]').forEach(function (v) { v.hidden = v.getAttribute("data-face") !== p[r]; });
     });
     var warn = document.getElementById("warnings");
@@ -153,7 +179,7 @@ JS = """
     if (d.mode === "taste") { return taste(); }
     if (d.mode === "depth") { return depth(); }
     var p = picks(), out = { fonts: {}, kept: Object.keys(kept).filter(function (k) { return kept[k]; }) };
-    d.roles.forEach(function (r) { var f = face(p[r]); if (f) { out.fonts[r] = { id: f.id, family: f.family, licence: f.licence, source: f.source, files: f.files, weights: f.weights }; } });
+    d.roles.forEach(function (r) { var f = face(p[r]); if (f) { out.fonts[r] = { id: f.id, family: f.family, licence: f.licence, source: f.source, files: f.files, weights: f.weights, weight: weightOf("weight", r, f), strong: weightOf("strong", r, f) }; } });
     return out;
   };
   document.querySelectorAll("input[type=radio]").forEach(function (i) { i.addEventListener("change", update); });
@@ -322,6 +348,7 @@ def build(company, candidates, wanted):
     else:
         data.update({"roles": list(ROLES), "names": {r: ROLE_INFO[r][0] for r in ROLES},
                      "needs": {r: {"weights": ROLE_INFO[r][4], "italic": ROLE_INFO[r][5]} for r in ROLES},
+                     "ladder": list(LADDER), "defaults": WEIGHTS, "offered": {r: list(OFFERED[r]) for r in ROLES},
                      "roleFaces": {r: [{"id": i} for i in offered[r]] for r in ROLES}})
         picks = {}
         for r in ROLES:
@@ -335,10 +362,19 @@ def build(company, candidates, wanted):
                 f'<li>Italic: {"yes" if row[i]["italic"] else "no"}</li><li>Licence: {e(row[i]["licence"])}</li>'
                 + "".join(f'<li>{e(l)}: {"covers every character" if g["covers"] else ("not checked" if g["covers"] is None else str(g["missing"]) + " characters missing")}</li>'
                           for l, g in row[i]["glyphs"].items()) + '</ul></div>' for i in offered[r])
+            def ladder(kind, i):
+                want = choice.get(f"{kind}-{r}")
+                face = row[picks[r]]
+                near = lambda w: min((x for x in LADDER if any(a["min"] <= x <= a["max"] for a in face["weights"])), key=lambda x: (abs(x - w), x), default=w)
+                keep = int(want) if str(want).isdigit() and int(want) in LADDER and near(int(want)) == int(want) else near(WEIGHTS[r][i])
+                return "".join(f'<label><input type="radio" name="{kind}-{r}" value="{x}"{" checked" if x == keep else ""}> {x}</label>' for x in LADDER)
+            asked = {"weight": ('Regular weight: what the text of this role is set in.', 0), "strong": ('Strong weight: for emphasis and headings.', 1)}
+            weight_groups = "".join(f'<p>{asked[k][0]}</p><fieldset data-option-group="{k}-{r}"><div class="tabs">{ladder(k, asked[k][1])}</div></fieldset>'
+                                    for k in OFFERED[r])
             note = ('<p class="tag">None of your favourites suit this role, so these are faces that do.</p>' if fallback.get(r) else "")
             cards.append(f'<section class="card" data-card="role-{r}" hidden><h2>{e(TITLES[r])}</h2><p><strong>{e(job)}</strong></p>'
                          f'<p>Where it appears: {e(where)} How often she sees it: {e(seen)}</p>{note}'
-                         f'<fieldset data-option-group="type-{r}"><div class="tabs">{radios}</div></fieldset>{views}</section>')
+                         f'<fieldset data-option-group="type-{r}"><div class="tabs">{radios}</div></fieldset>{views}{weight_groups}</section>')
         cards.append('<section class="card" data-card="summary" hidden><h2>Your typefaces</h2><p>These are the faces as you have them now. '
                      'Anything a role needs and a face does not have is listed; you may keep it, and it is written down with your reason.</p>'
                      '<ul id="warnings"></ul></section>')
@@ -352,6 +388,7 @@ def build(company, candidates, wanted):
     live = ""
     if stage == "roles":
         style = "; ".join(f"--f-{r}: {choicepage.quote_family(row[picks[r]]['family'])}, {FALLBACK[row[picks[r]]['kind']]}" for r in ROLES)
+        style += "; " + "; ".join(f"--w-{r}: {WEIGHTS[r][0]}; --w-{r}-strong: {WEIGHTS[r][1]}" for r in ROLES)
         panel = lambda mode: (f'<div class="panel" style="--p-bg: {colours[mode]["bg"]}; --p-text: {colours[mode]["text"]}; '
                               f'--p-muted: {colours[mode]["muted"]}; --p-accent: {colours[mode]["accent"]}; '
                               f'--p-on-accent: {colours[mode]["on-accent"]}"><p class="wm">{e(sample["name"])}</p>'
