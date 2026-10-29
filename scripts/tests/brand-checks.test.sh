@@ -273,6 +273,8 @@ check "and under :root[data-theme=\"dark\"]" says "$CSS" ':root\[data-theme="dar
 check "it says it is generated and must not be edited" says "$CSS" "Generated from tokens.json"
 ofl_font "Test Serif"; role heading "Test Serif" fonts/test OFL-1.1; brand tokens --write
 check "each role gets a font stack" says "$CSS" '--font-heading: "Test Serif", serif;'
+check "and its two weights, lowered to the one weight shipped when the tokens set none" \
+  says_all "$CSS" "--weight-heading: 400;" "--weight-heading-strong: 400;"
 check "fonts.css has one @font-face for the shipped file, served as WOFF2" says "$ID/fonts.css" 'src: url("fonts/test/web/Test-Regular.woff2") format("woff2");'
 check "with font-display: swap" says "$ID/fonts.css" "font-display: swap;"
 sum1="$(sha256sum "$CSS" "$ID/fonts.css")"; brand tokens --write
@@ -443,6 +445,19 @@ tweak "t['type']['fonts']['body']['weights'] = [400, 700]"; brand type
 check "a weight inside a variable font's axis passes the weight check" quiet_about "$T/out" "weight 700"
 tweak "t['type']['fonts']['body']['weights'] = [950]"; brand type
 check "a weight outside the axis fails" says "$T/out" "weight 950 is not in the font files (they have 100 to 900)"
+
+fresh; FONT_CHARS="$LATIN" ofl_font "Test Sans"; role body "Test Sans" fonts/test OFL-1.1
+tweak "t['languages'] = ['pt']; t['type']['fonts']['body']['weight'] = 500; t['type']['fonts']['body']['strong'] = 700"; brand type
+check "a regular weight the files do not have fails" says "$T/out" "tokens.json: body (Test Sans): the regular weight 500 is not in the font files (they have 400)"
+check "and so does a strong weight" says "$T/out" "tokens.json: body (Test Sans): the strong weight 700 is not in the font files (they have 400)"
+tweak "t['languages'] = ['pt']; t['type']['fonts']['body']['weight'] = 400; t['type']['fonts']['body']['strong'] = 400"; brand type
+check "a face with one weight passes when both weights are that one" quiet_about "$T/out" "the regular weight"
+fresh; ofl_font "Test Serif"; role heading "Test Serif" fonts/test OFL-1.1
+tweak "t['type']['fonts']['heading']['weights'] = [400, 700]"; brand tokens --write
+check "unset weights read as 400 and 600, lowered to the nearest weight shipped" \
+  says_all "$CSS" "--weight-heading: 400;" "--weight-heading-strong: 700;"
+tweak "t['type']['fonts']['heading']['weights'] = [400, 500, 700]; t['type']['fonts']['heading']['weight'] = 500; t['type']['fonts']['heading']['strong'] = 700"; brand tokens --write
+check "set weights are written as they are" says_all "$CSS" "--weight-heading: 500;" "--weight-heading-strong: 700;"
 
 fresh; FONT_CHARS="$LATIN" ofl_font "Test Sans"; role body "Test Sans" fonts/test OFL-1.1; tweak "t['languages'] = ['pt']"; brand type
 check "a body face without an italic fails" code 1
