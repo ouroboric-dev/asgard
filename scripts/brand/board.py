@@ -210,6 +210,18 @@ def image_records():
     return records
 
 
+def drawn_lettering(tokens):
+    """(drawn family, wordmark family, alternative) when the logo's lettering was drawn in another face than the wordmark role's."""
+    try:
+        with open(f"{IDENTITY}/choices/logo.json", encoding="utf-8") as fh:
+            chosen = json.load(fh)
+        drawn = chosen["wordmark"]["family"]
+        now = tokens["type"]["fonts"]["wordmark"]["family"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return (drawn, now, chosen.get("alternative", "ALTERNATIVE")) if drawn != now else None
+
+
 def make(resvg, today):
     with open(f"{IDENTITY}/tokens.json", encoding="utf-8") as fh:
         tokens = json.load(fh)
@@ -341,6 +353,10 @@ def make(resvg, today):
                 open_items.append(f"Logo: {g['what']}.")
             md += design.logo_usage_md(tokens, pals, out, resvg, work)
 
+    lettering = drawn_lettering(tokens)
+    if lettering:
+        open_items.append(f"Logo: the lettering is drawn in {lettering[0]}, and the wordmark role is {lettering[1]} now. Draw it again "
+                          f"with `brand.sh logo-proposals CANDIDATES --choose {lettering[2]}:FACE`, FACE being the id of {lettering[1]}.")
     md += ["## Sample images", ""]
     if not photos:
         md += ["No sample image yet.", ""]
