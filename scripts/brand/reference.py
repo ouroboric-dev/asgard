@@ -21,77 +21,13 @@ import sys
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import recipes  # noqa: E402
 
 IDENTITY = "docs/7-branding/identity"
 REFERENCE = f"{IDENTITY}/reference"
 WIDTHS = (390, 820, 1280)
 
-COMPONENTS_CSS = """/* Generated from tokens.json: do not edit. The component recipes of the token contract, built only from the variables of
-   tokens.css. */
-/* inputs: INPUTS_HASH */
-
-/* Buttons: filled, outlined, soft. A secondary button is outlined. */
-.ds-btn { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); min-height: var(--target); padding: 0 var(--space-4); border: 1.5px solid var(--color-accent); border-radius: var(--radius-button); font-family: var(--font-ui); font-size: var(--text-small); font-weight: 600; line-height: 1; cursor: pointer; text-decoration: none; transition: filter var(--motion-duration) var(--motion-easing), transform var(--motion-duration) var(--motion-easing); }
-.ds-btn[data-variant="filled"] { background: var(--color-accent); color: var(--color-on-accent); }
-.ds-btn[data-variant="outlined"] { background: transparent; color: var(--color-accent-text); }
-.ds-btn[data-variant="soft"] { background: color-mix(in srgb, var(--color-accent) 16%, var(--color-bg)); border-color: color-mix(in srgb, var(--color-accent) 16%, var(--color-bg)); color: var(--color-accent-text); }
-.ds-btn:hover { filter: brightness(.93); }
-.ds-btn:active { transform: scale(.97); }
-.ds-btn:focus-visible { outline: var(--focus-width) solid var(--focus-color); outline-offset: var(--focus-offset); }
-.ds-btn[aria-disabled="true"], .ds-btn:disabled { opacity: .45; cursor: not-allowed; }
-
-/* Links: underlined, colour (underlined on hover). */
-.ds-link { color: var(--color-accent-text); }
-.ds-link[data-variant="underlined"] { text-decoration: underline; text-underline-offset: 3px; }
-.ds-link[data-variant="colour"] { text-decoration: none; }
-.ds-link[data-variant="colour"]:hover { text-decoration: underline; text-underline-offset: 3px; }
-.ds-link:focus-visible { outline: var(--focus-width) solid var(--focus-color); outline-offset: var(--focus-offset); }
-.ds-link[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
-
-/* Fields: a label above, a control, an error beneath. */
-.ds-field { display: grid; gap: var(--space-1); font-family: var(--font-ui); font-size: var(--text-small); font-weight: 500; color: var(--color-text); }
-.ds-field input, .ds-field textarea, .ds-field select { box-sizing: border-box; min-height: var(--target); padding: 0 var(--space-3); background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); border-radius: var(--radius-md); font-family: var(--font-body); font-size: var(--text-body); }
-.ds-field input::placeholder, .ds-field textarea::placeholder { color: var(--color-muted); }
-.ds-field input:focus-visible, .ds-field textarea:focus-visible, .ds-field select:focus-visible { outline: var(--focus-width) solid var(--focus-color); outline-offset: var(--focus-offset); }
-.ds-field input[aria-invalid="true"] { border-color: var(--color-crit); }
-.ds-field .ds-error { color: var(--color-crit); font-weight: 500; }
-.ds-field input[aria-disabled="true"], .ds-field input:disabled { opacity: .45; cursor: not-allowed; }
-
-/* Cards: bordered, surface, raised. */
-.ds-card { box-sizing: border-box; padding: var(--space-3); border-radius: var(--radius-lg); display: grid; gap: var(--space-1); align-content: start; color: var(--color-text); }
-.ds-card h3 { margin: 0; font-family: var(--font-heading); font-size: var(--text-h3); line-height: var(--leading-heading); }
-.ds-card p { margin: 0; font-family: var(--font-body); }
-.ds-card[data-variant="bordered"] { background: var(--color-bg); border: 1px solid var(--color-border); }
-.ds-card[data-variant="surface"] { background: var(--color-surface); }
-.ds-card[data-variant="raised"] { background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: var(--shadow-card); }
-
-/* Messages: tint, bar. The tone sets --c: the success, attention or error colour. */
-.ds-message { box-sizing: border-box; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); font-family: var(--font-body); font-size: var(--text-small); display: flex; gap: var(--space-2); align-items: center; }
-.ds-message[data-tone="ok"] { --c: var(--color-ok); }
-.ds-message[data-tone="warn"] { --c: var(--color-warn); }
-.ds-message[data-tone="crit"] { --c: var(--color-crit); }
-.ds-message[data-variant="tint"] { background: color-mix(in srgb, var(--c) 10%, var(--color-bg)); color: var(--c); }
-.ds-message[data-variant="bar"] { background: var(--color-surface); color: var(--c); border-left: 3px solid var(--c); border-radius: 0 var(--radius-md) var(--radius-md) 0; }
-
-/* Navigation: left (logo at the start), centre (logo centred, links beneath). */
-.ds-nav { box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-3) var(--space-4); background: var(--color-bg); border-bottom: 1px solid var(--color-border); font-family: var(--font-ui); font-size: var(--text-small); font-weight: 500; color: var(--color-text); }
-.ds-nav[data-variant="centre"] { flex-direction: column; justify-content: center; }
-.ds-nav a { color: var(--color-text); text-decoration: none; min-height: var(--target); display: inline-flex; align-items: center; }
-.ds-nav a[aria-current="page"] { color: var(--color-accent-text); }
-.ds-nav a:focus-visible { outline: var(--focus-width) solid var(--focus-color); outline-offset: var(--focus-offset); }
-
-/* Images: borderless, rounded, framed. */
-.ds-image { display: block; max-width: 100%; }
-.ds-image[data-variant="rounded"] { border-radius: var(--radius-md); }
-.ds-image[data-variant="framed"] { border: var(--space-1) solid var(--color-bg); box-shadow: 0 1px 3px color-mix(in srgb, var(--color-text) 25%, transparent); }
-
-/* Icons: outline, filled. */
-.ds-icon { width: 22px; height: 22px; color: var(--color-accent-text); }
-.ds-icon[data-variant="outline"] path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
-.ds-icon[data-variant="filled"] path { fill: currentColor; stroke: none; }
-
-@media (prefers-reduced-motion: reduce) { .ds-btn { transition: none; } .ds-btn:active { transform: none; } }
-"""
+COMPONENTS_CSS = recipes.css()
 
 PAGE_CSS = """
 body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); font-size: var(--text-body); line-height: var(--leading-body); }
