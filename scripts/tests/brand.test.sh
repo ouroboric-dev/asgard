@@ -947,6 +947,12 @@ PY
 }
 refp
 check "reference writes the component stylesheet, the page and the screenshots" refcode 0
+# One source for the component recipes: a rule added to recipes.css reaches the reference and the playground.
+RC="$T/rcopy"; mkdir -p "$RC/brand"; cp "$BRAND" "$RC/"; cp "$HERE/../brand/"* "$RC/brand/" 2>/dev/null
+printf '.ds-btn { --one-source: marker; }\n' >>"$RC/brand/recipes.css"
+"$RC/brand.sh" reference "$C" >/dev/null 2>&1
+check "a rule added to the one recipes file reaches the reference stylesheet" says "$REFD/components.css" "one-source: marker"
+refp
 check "components.css holds no literal colour and no font name: only variables of tokens.css" only_variables "$REFD/components.css"
 check "and no size but the recipes' own constants (a 1 px border, a 3 px bar, a 22 px icon)" sizes_are_recipe_constants "$REFD/components.css"
 check "every variable it uses is one that tokens.css defines" vars_are_defined "$REFD/components.css" "$C/$ID_REL/tokens.css"
@@ -1007,6 +1013,10 @@ PY
 play "$C"
 check "with the choices saved, the playground is built" plcode 0
 check "in the choices folder, ignored by git" test -f "$PGP"
+ASGARD_FACES="$T/faces.json" ASGARD_FONTS_BASE="file://$TLIB" ASGARD_FONTS_DIR="$TDL" "$RC/brand.sh" playground "$C" >/dev/null 2>&1
+check "and the same rule reaches the playground's sample site" says "$PGP" "one-source: marker"
+check "which holds no recipe of its own: no rule keyed to a container's button choice" lacks_text "$PGP" 'data-button="filled"'
+play "$C"
 check "the page passes the page check: every option of every tab changes it, in both modes" check_page "$PGP"
 check "it has a tab for the palette, the type, the foundations, the components and the checks" \
   fx page "$PGP" 'all(x in html for x in ("data-tab=\"palette\"", "data-tab=\"type\"", "data-tab=\"foundations\"", "data-tab=\"components\"", "data-tab=\"checks\""))'

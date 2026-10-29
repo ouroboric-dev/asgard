@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import choicepage  # noqa: E402
 import foundationspage  # noqa: E402
 import palettepage  # noqa: E402
+import recipes  # noqa: E402
 import typepage  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -59,46 +60,30 @@ CSS = r"""
 .sitebar button[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .viewport { overflow: auto; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); padding: 8px; }
 #site { margin: 0 auto; width: 100%; background: var(--c-bg); color: var(--c-text); font: 400 var(--fs-body)/var(--lh-body) var(--f-body); border-radius: 10px; overflow: hidden; }
+/* The contract's names for the sample site's own variables: the shared recipes (recipes.css) are written in them. */
+#site { --color-bg: var(--c-bg); --color-surface: var(--c-surface); --color-border: var(--c-border); --color-text: var(--c-text); --color-muted: var(--c-muted);
+  --color-accent: var(--c-accent); --color-accent-text: var(--c-accent-text); --color-on-accent: var(--c-on-accent); --color-ok: var(--m-ok); --color-warn: var(--m-warn); --color-crit: var(--m-crit);
+  --space-1: var(--s1); --space-2: var(--s2); --space-3: var(--s3); --space-4: var(--s4); --radius-md: var(--r-md); --radius-lg: var(--r-lg); --radius-button: var(--r-button);
+  --shadow-card: var(--sh-card); --focus-width: var(--focus-w); --focus-offset: var(--focus-o); --focus-color: var(--focus-c);
+  --font-ui: var(--f-ui); --font-body: var(--f-body); --font-heading: var(--f-heading); --text-small: var(--fs-small); --text-body: var(--fs-body); --text-h3: var(--fs-h3);
+  --leading-heading: var(--lh-heading); }
 #site[data-width="phone"] { max-width: 390px; } #site[data-width="tablet"] { max-width: 820px; } #site[data-width="desktop"] { max-width: 1200px; }
-#site section, #site nav, #site footer { padding: var(--s4) var(--s4); display: grid; gap: var(--s3); }
+#site section, #site footer { padding: var(--s4) var(--s4); display: grid; gap: var(--s3); }
 #site section + section { border-top: 1px solid var(--c-border); }
-#site nav { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; border-bottom: 1px solid var(--c-border); font: 500 var(--fs-small) var(--f-ui); }
-#site[data-nav="centre"] nav { flex-direction: column; }
 #site .logo { display: flex; align-items: center; gap: var(--s2); }
 #site .logo .mk { position: relative; width: 36px; aspect-ratio: var(--logo-aspect, 1); }
 #site .logo .mk i { position: absolute; inset: 0; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: contain; mask-size: contain; }
 #site .logo .wm { font: 400 1.35rem var(--f-wordmark); }
 #site .links { display: flex; gap: var(--s3); flex-wrap: wrap; }
-#site a, #site .a { color: var(--c-accent-text); }
-#site[data-link="underlined"] .a { text-decoration: underline; text-underline-offset: 3px; }
-#site[data-link="colour"] .a { text-decoration: none; }
-#site[data-link="colour"] .a:hover { text-decoration: underline; }
 #site .display { font: 400 var(--fs-display)/var(--lh-display) var(--f-display); margin: 0; }
 #site h2 { font: 600 var(--fs-h2)/var(--lh-heading) var(--f-heading); margin: 0; }
 #site h3 { font: 600 var(--fs-h3)/var(--lh-heading) var(--f-heading); margin: 0; }
 #site p { margin: 0; max-width: 62ch; }
 #site .small { font-size: var(--fs-small); color: var(--c-muted); }
-#site .btn { font: 600 var(--fs-small)/1 var(--f-ui); min-height: var(--target); padding: 0 var(--s4); border-radius: var(--r-button); border: 1.5px solid var(--c-accent); display: inline-flex; align-items: center; width: max-content; }
-#site[data-button="filled"] .btn.p { background: var(--c-accent); color: var(--c-on-accent); }
-#site[data-button="outlined"] .btn.p { background: transparent; color: var(--c-accent-text); }
-#site[data-button="soft"] .btn.p { background: var(--c-tint); color: var(--c-accent-text); border-color: var(--c-tint); }
-#site .btn.s { background: transparent; color: var(--c-accent-text); }
-#site .btn.focused, #site .field.focused { outline: var(--focus-w) solid var(--focus-c); outline-offset: var(--focus-o); }
+#site .ds-btn.focused, #site .ds-field input.focused { outline: var(--focus-w) solid var(--focus-c); outline-offset: var(--focus-o); }
 #site .grid { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: var(--s2); }
 #site .ph { aspect-ratio: 1 / 1; background: linear-gradient(160deg, color-mix(in srgb, var(--c-accent) 30%, var(--c-surface)), color-mix(in srgb, var(--c-accent) 70%, var(--c-bg))); }
-#site[data-image="rounded"] .ph { border-radius: var(--r-md); }
-#site[data-image="framed"] .ph { border: var(--s1) solid var(--c-bg); box-shadow: 0 1px 3px color-mix(in srgb, var(--c-text) 25%, transparent); }
 #site .cards { display: grid; grid-template-columns: repeat(var(--ccols, 1), minmax(0, 1fr)); gap: var(--s3); }
-#site .card { padding: var(--s3); border-radius: var(--r-lg); display: grid; gap: var(--s1); align-content: start; }
-#site[data-card="bordered"] .card { border: 1px solid var(--c-border); background: var(--c-bg); }
-#site[data-card="surface"] .card { background: var(--c-surface); }
-#site[data-card="raised"] .card { background: var(--c-surface); border: 1px solid var(--c-border); box-shadow: var(--sh-card); }
-#site .ic { width: 22px; height: 22px; color: var(--c-accent-text); }
-#site[data-icons="filled"] .ic path { fill: currentColor; } #site[data-icons="outline"] .ic path { fill: none; stroke: currentColor; stroke-width: 1.6; }
-#site .field { min-height: var(--target); border: 1px solid var(--c-border); background: var(--c-surface); border-radius: var(--r-md); color: var(--c-muted); display: flex; align-items: center; padding: 0 var(--s3); font: 400 var(--fs-small) var(--f-body); }
-#site .msg { font-size: var(--fs-small); border-radius: var(--r-md); padding: var(--s2) var(--s3); display: flex; gap: 8px; align-items: center; }
-#site[data-message="tint"] .msg { background: color-mix(in srgb, var(--c) 10%, var(--c-bg)); color: var(--c); }
-#site[data-message="bar"] .msg { border-left: 3px solid var(--c); background: var(--c-surface); color: var(--c); border-radius: 0 var(--r-md) var(--r-md) 0; }
 #site footer { background: var(--c-surface); font-size: var(--fs-small); color: var(--c-muted); }
 #site .overlay { background: var(--c-surface); border-radius: var(--r-lg); padding: var(--s2) var(--s3); box-shadow: var(--sh-overlay); width: max-content; font-size: var(--fs-small); }
 #motion-ball { width: 14px; height: 14px; border-radius: 50%; background: var(--c-accent); animation: glide var(--m-loop) var(--m-ease) infinite alternate; }
@@ -110,6 +95,7 @@ JS = r"""
 (function () {
   var d = JSON.parse(document.getElementById("data").textContent);
   var stage = document.getElementById("stage"), site = document.getElementById("site");
+  site.addEventListener("click", function (e) { if (e.target.closest("a")) { e.preventDefault(); } });
   function lum(h) { var c = [1, 3, 5].map(function (i) { var v = parseInt(h.substr(i, 2), 16) / 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
   function ratio(a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
   function shown(r) { return (Math.floor(r * 100) / 100).toFixed(2); }
@@ -211,7 +197,9 @@ JS = r"""
     var fo = s.found.focus.v; v.setProperty("--focus-w", fo.width + "px"); v.setProperty("--focus-o", fo.offset + "px"); v.setProperty("--focus-c", fo.role === "text" ? "var(--m-text)" : "var(--m-" + fo.role + ")");
     v.setProperty("--target", s.found.target.v + "px");
     d.roleNames.forEach(function (r) { if (s.faces[r]) { v.setProperty("--f-" + r, stack(s.faces[r])); } });
-    Object.keys(s.comps).forEach(function (k) { site.setAttribute("data-" + (k === "nav" ? "nav" : k), s.comps[k]); });
+    var parts = { button: ".ds-btn", link: ".ds-link", card: ".ds-card", message: ".ds-message", nav: ".ds-nav", image: ".ds-image", icons: ".ds-icon" };
+    Object.keys(parts).forEach(function (k) { site.querySelectorAll(parts[k]).forEach(function (el) { el.setAttribute("data-variant", s.comps[k]); }); });
+    v.setProperty("--motion-duration", mo.duration + "ms"); v.setProperty("--motion-easing", mo.easing);
     var bps = s.found.breakpoints.v, w = { phone: 390, tablet: 820, desktop: 1200 }[site.getAttribute("data-width")];
     var cols = s.found.breakpoints.cols[bps.filter(function (b) { return w >= b; }).length];
     v.setProperty("--cols", Math.min(cols, 4)); v.setProperty("--ccols", w >= bps[0] ? 3 : 1);
@@ -414,21 +402,21 @@ def build(company, candidates):
     if layers:
         logo = f'<span class="mk" style="--logo-aspect: {layers["aspect"]}">' + "".join(
             f'<i style="background: var(--logo-{i}); -webkit-mask-image: url({l}); mask-image: url({l})"></i>' for i, l in enumerate(layers["layers"])) + "</span>"
-    links = '<span class="links"><span class="a">Work</span><span class="a">About</span><span class="a">Contact</span></span>'
-    site = (f'<div id="site" data-width="desktop"><nav id="site-nav"><span class="logo">{logo}<span class="wm">{e(sample["name"])}</span></span>{links}</nav>'
+    links = '<span class="links"><a href="#a">Work</a><a href="#a">About</a><a href="#a">Contact</a></span>'
+    site = (f'<div id="site" data-width="desktop"><nav class="ds-nav" id="site-nav"><span class="logo">{logo}<span class="wm">{e(sample["name"])}</span></span>{links}</nav>'
             f'<section id="site-hero"><p class="display">{e(sample["tagline"])}</p><p>{e(sample["about"])}</p>'
-            '<span class="btn p">Get in touch</span></section>'
-            '<section id="site-grid"><div class="grid"><div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph"></div></div></section>'
+            '<a class="ds-btn" href="#a">Get in touch</a></section>'
+            '<section id="site-grid"><div class="grid"><div class="ds-image ph"></div><div class="ds-image ph"></div><div class="ds-image ph"></div><div class="ds-image ph"></div><div class="ds-image ph"></div><div class="ds-image ph"></div></div></section>'
             f'<section id="site-about"><h2>About us</h2><p>{e(sample["about"])} <strong>Bold for emphasis,</strong> <em>italic for a title.</em></p>'
             '<p class="small">A caption, a little quieter.</p></section>'
             f'<section id="site-cards"><h2>What we offer</h2><div class="cards">'
-            + "".join(f'<div class="card"><svg class="ic" viewBox="0 0 22 22"><path d="{star}"/></svg><h3>Service {i}</h3><p class="small">A few words about it.</p></div>' for i in (1, 2, 3)) +
+            + "".join(f'<div class="ds-card"><svg class="ds-icon" viewBox="0 0 22 22"><path d="{star}"/></svg><h3>Service {i}</h3><p class="small">A few words about it.</p></div>' for i in (1, 2, 3)) +
             '</div></section>'
-            '<section id="site-contact"><h2>Say hello</h2><div class="field focused">Your name</div><span class="btn p focused">Send</span>'
-            '<p class="msg" style="--c: var(--m-ok)">Your message has been sent.</p><p class="msg" style="--c: var(--m-crit)">Something went wrong. Try again.</p>'
+            '<section id="site-contact"><h2>Say hello</h2><label class="ds-field">Your name<input class="focused" placeholder="Your name"></label><a class="ds-btn focused" href="#a">Send</a>'
+            '<p class="ds-message" data-tone="ok">Your message has been sent.</p><p class="ds-message" data-tone="crit">Something went wrong. Try again.</p>'
             '<div class="overlay">Something that floats above the page</div>'
             '<div class="small">Motion: <span id="motion-ball"></span> <span id="motion-words"></span></div></section>'
-            f'<footer id="site-footer"><span>{e(sample["name"])}</span><span class="a">Privacy</span></footer></div>')
+            f'<footer id="site-footer"><span>{e(sample["name"])}</span><a class="ds-link" href="#a">Privacy</a></footer></div>')
     tabs = (("palette", "Palette", pal_html), ("type", "Type", type_html), ("foundations", "Foundations", found_html), ("components", "Components", comp_html),
             ("checks", "Checks", '<ul class="checklist" id="checklist"></ul>'))
     nav = "".join(f'<button type="button" data-tab-button="{k}" aria-selected="{"true" if k == "palette" else "false"}">{n}'
@@ -448,7 +436,7 @@ def build(company, candidates):
     page = choicepage.skeleton("playground", "Your design system, together",
                                "This is everything you chose, on a sample site. Change anything once more; the checks on the Checks tab say "
                                "what each change costs, and you may keep a failure with your reason.", body, data, saved,
-                               css=CSS + "".join(embeds), js=JS)
+                               css=CSS + recipes.css().replace("INPUTS_HASH", "playground") + "".join(embeds), js=JS)
     out = os.path.join(company, choicepage.CHOICES)
     os.makedirs(out, exist_ok=True)
     with open(os.path.join(out, "playground.html"), "w", encoding="utf-8") as fh:
