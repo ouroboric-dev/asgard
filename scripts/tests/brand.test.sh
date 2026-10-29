@@ -965,6 +965,17 @@ printf '.ds-btn { --one-source: marker; }\n' >>"$RC/brand/recipes.css"
 check "a rule added to the one recipes file reaches the reference stylesheet" says "$REFD/components.css" "one-source: marker"
 refp
 check "components.css holds no literal colour and no font name: only variables of tokens.css" only_variables "$REFD/components.css"
+check "and no weight number: a role's weights are the properties of tokens.css" lacks_text "$REFD/components.css" 'font-weight: [0-9]'
+cp "$TK" "$T/tk.keep"
+python3 - "$TK" <<'PY2'
+import json, sys
+t = json.load(open(sys.argv[1])); t["type"]["fonts"]["ui"].update({"weights": [400, 700], "weight": 400, "strong": 700})
+json.dump(t, open(sys.argv[1], "w"), indent=2)
+PY2
+(cd "$C" && "$PY" -I .ouroboric/checks/brand.py tokens --write >/dev/null); refp
+check "a button's label follows the ui role's strong weight" \
+  fx browse "$REFD/playground.html" 'getComputedStyle(document.querySelector(".ds-btn")).fontWeight === "700"'
+cp "$T/tk.keep" "$TK"; (cd "$C" && "$PY" -I .ouroboric/checks/brand.py tokens --write >/dev/null); refp
 check "and no size but the recipes' own constants (a 1 px border, a 3 px bar, a 22 px icon)" sizes_are_recipe_constants "$REFD/components.css"
 check "every variable it uses is one that tokens.css defines" vars_are_defined "$REFD/components.css" "$C/$ID_REL/tokens.css"
 for v in 'data-variant="filled"' 'data-variant="outlined"' 'data-variant="soft"' 'data-variant="underlined"' 'data-variant="colour"' 'data-variant="bordered"' 'data-variant="raised"' 'data-variant="tint"' 'data-variant="bar"' 'data-variant="centre"' 'data-variant="framed"' 'data-variant="rounded"'; do
@@ -1040,6 +1051,10 @@ check "it opens on her saved choices: the palette is the saved one" \
   fx browse "$PGP" 'window.__choiceResult().tokens.light.accent === "#0B5FCC" && window.__choiceResult().tokens.dark.bg === "#121212"'
 check "and the saved typefaces: the body is the one she chose" \
   fx browse "$PGP" 'window.__choiceResult().tokens.type.fonts.body.family === "Slant Face" && window.__choiceResult().tokens.type.fonts.wordmark.family === "Pen Face"'
+check "the export carries each role's regular and strong weights, both among those it ships" \
+  fx browse "$PGP" 'Object.values(window.__choiceResult().tokens.type.fonts).every(f => Number.isInteger(f.weight) && Number.isInteger(f.strong) && f.weights.includes(f.weight) && f.weights.includes(f.strong))'
+check "the sample site's button takes the ui role's strong weight" \
+  fx browse "$PGP" 'getComputedStyle(document.querySelector("#site .ds-btn")).fontWeight === "600"'
 check "and the foundations of the tokens" fx browse "$PGP" 'window.__choiceResult().tokens.target === 44 && window.__choiceResult().tokens.space.length === 7'
 check "the page's rules give brand.py's ratio and result for every contrast pair of the palette" \
   fx browse "$PGP" 'window.__rules && window.__data().expected.every(r => { const x = window.__rules.rows(window.__data().palette.light, window.__data().palette.dark).find(y => y.mode === r.mode && y.fg === r.fg && y.bg === r.bg); return x && x.result === r.result && Math.abs(x.ratio - r.ratio) < 0.001; })'
